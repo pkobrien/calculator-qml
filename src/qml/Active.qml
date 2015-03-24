@@ -7,4 +7,5 @@ QtObject {
 
     property var appWindow
     property var calculator
+    property bool logging: true
 }

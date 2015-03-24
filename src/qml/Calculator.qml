@@ -4,8 +4,13 @@ import "." as App
 App.CalculatorForm {
     id: calculator
 
+    App.CalculatorStateMachine { id: calculatorStateMachine }
+
     focus: true
     Keys.onPressed: {
         App.Actions.keyPressed(event, calculator);
+        if (!event.accepted) {
+            calculatorStateMachine.keyPressed(event, calculator);
+        }
     }
 }
