@@ -5,6 +5,7 @@ import "." as App
 DSM.StateMachine {
     id: calculatorStateMachine
 
+    property bool accepted
     property string acceptedKey
     property string attemptedKey
     property string buffer
@@ -16,7 +17,6 @@ DSM.StateMachine {
     property string operator1
     property string operator2
     property real result
-    property bool validKey
 
     signal addsubPressed()
     signal clearPressed()
@@ -27,6 +27,7 @@ DSM.StateMachine {
     signal zeroPressed()
 
     function reset() {
+        accepted = false;
         acceptedKey = "";
         attemptedKey = "";
         buffer = "";
@@ -38,14 +39,11 @@ DSM.StateMachine {
         operator1 = "";
         operator2 = "";
         result = 0.00;
-        validKey = false;
     }
 
     function keyPressed(event, source) {
         key = event.text;
-        if (validKey) {
-            event.accepted = true;
-        }
+        event.accepted = accepted;
     }
 
     onKeyChanged: {
@@ -53,20 +51,12 @@ DSM.StateMachine {
             return;
         }
         attemptedKey = key;
-        validKey = true;
+        accepted = true;
         switch (key) {
             default:
-                validKey = false;
+                accepted = false;
                 break;
-            case "1":
-            case "2":
-            case "3":
-            case "4":
-            case "5":
-            case "6":
-            case "7":
-            case "8":
-            case "9":
+            case "1": case "2": case "3": case "4": case "5": case "6": case "7": case "8": case "9":
                 digitPressed();
                 break;
             case "0":
@@ -81,18 +71,14 @@ DSM.StateMachine {
             case "=":
                 equalPressed();
                 break;
-            case "+":
-            case "-":
+            case "+": case "-":
                 addsubPressed();
                 break;
-            case "*":
-            case "/":
+            case "*": case "/":
                 muldivPressed();
                 break;
         }
-        if (validKey) {
-            acceptedKey = key;
-        }
+        acceptedKey = accepted ? key : "";
         // Set key to empty string so duplicated keys still trigger onKeyChanged.
         key = ""
     }
@@ -143,26 +129,23 @@ DSM.StateMachine {
                     operand2 /= num;
                     break;
             }
-            operator2 = key;
+            operator2 = "";
         } else if (operator1) {
             switch (operator1) {
                 case "*":
                     operand1 *= num;
-                    operator1 = key;
+                    operator1 = "";
                     break;
                 case "/":
                     operand1 /= num;
-                    operator1 = key;
+                    operator1 = "";
                     break;
-                case "+":
-                case "-":
+                case "+": case "-":
                     operand2 = num;
-                    operator2 = key;
                     break;
             }
         } else {
             operand1 = num;
-            operator1 = key;
         }
     }
 
@@ -182,9 +165,7 @@ DSM.StateMachine {
 
         initialState: accumulateState
 
-        onEntered: {
-            reset();
-        }
+        onEntered: reset();
 
         DSM.SignalTransition {
             signal: clearPressed
@@ -193,9 +174,7 @@ DSM.StateMachine {
 
         DSM.State {
             id: errorState
-            onEntered: {
-                display = errorMessage;
-            }
+            onEntered: display = errorMessage;
         }
 
         DSM.State {
@@ -212,26 +191,19 @@ DSM.StateMachine {
             }
             DSM.SignalTransition {
                 signal: addsubPressed
-                targetState: computedState
-                onTriggered: {
-                    calculateAll();
-                    operator1 = key;
-                }
+                targetState: operatorState
+                onTriggered: calculateAll();
             }
             DSM.SignalTransition {
                 signal: muldivPressed
-                targetState: computedState
-                onTriggered: {
-                    calculateLast();
-                }
+                targetState: operatorState
+                onTriggered: calculateLast();
             }
             DSM.SignalTransition {
                 signal: equalPressed
                 targetState: resultState
                 guard: operator1
-                onTriggered: {
-                    calculateAll();
-                }
+                onTriggered: calculateAll();
             }
 
             DSM.State {
@@ -249,8 +221,7 @@ DSM.StateMachine {
             DSM.State {
                 id: pointState
                 onEntered: {
-                    buffer = buffer ? buffer : "0";
-                    buffer += key;
+                    buffer = (buffer ? buffer : "0") + key;
                     display = buffer;
                 }
                 DSM.SignalTransition {
@@ -279,7 +250,7 @@ DSM.StateMachine {
         }
 
         DSM.State {
-            id: operateState
+            id: computedState
 
             DSM.SignalTransition {
                 signal: digitPressed
@@ -295,23 +266,24 @@ DSM.StateMachine {
             }
 
             DSM.State {
-                id: computedState
+                id: operatorState
 
                 onEntered: {
+                    if (operand2) {
+                        operator2 = key;
+                    } else {
+                        operator1 = key;
+                    }
                     display = operator2 ? buffer : operand1.toString();
                     buffer = "";
                 }
                 DSM.SignalTransition {
                     signal: addsubPressed
-                    onTriggered: {
-                        replaceLastOperator();
-                    }
+                    onTriggered: replaceLastOperator();
                 }
                 DSM.SignalTransition {
                     signal: muldivPressed
-                    onTriggered: {
-                        replaceLastOperator();
-                    }
+                    onTriggered: replaceLastOperator();
                 }
                 DSM.SignalTransition {
                     signal: equalPressed
@@ -346,17 +318,11 @@ DSM.StateMachine {
                 }
                 DSM.SignalTransition {
                     signal: addsubPressed
-                    targetState: computedState
-                    onTriggered: {
-                        operator1 = key;  // Override operator1 setting in onExited.
-                    }
+                    targetState: operatorState
                 }
                 DSM.SignalTransition {
                     signal: muldivPressed
-                    targetState: computedState
-                    onTriggered: {
-                        operator1 = key;  // Override operator1 setting in onExited.
-                    }
+                    targetState: operatorState
                 }
             }
         }
