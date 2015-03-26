@@ -108,8 +108,8 @@ DSM.StateMachine {
                     num /= operand2;
                     break;
             }
-            operator2 = "";
             operand2 = 0.00;
+            operator2 = "";
         }
         if (operator1) {
             switch (operator1) {
@@ -192,6 +192,13 @@ DSM.StateMachine {
         }
 
         DSM.State {
+            id: errorState
+            onEntered: {
+                display = errorMessage;
+            }
+        }
+
+        DSM.State {
             id: accumulateState
             initialState: zeroState
 
@@ -221,6 +228,7 @@ DSM.StateMachine {
             DSM.SignalTransition {
                 signal: equalPressed
                 targetState: resultState
+                guard: operator1
                 onTriggered: {
                     calculateAll();
                 }
@@ -271,12 +279,8 @@ DSM.StateMachine {
         }
 
         DSM.State {
-            id: computedState
+            id: operateState
 
-            onEntered: {
-                display = operator2 ? buffer : operand1.toString();
-                buffer = "";
-            }
             DSM.SignalTransition {
                 signal: digitPressed
                 targetState: digitState
@@ -289,81 +293,71 @@ DSM.StateMachine {
                 signal: zeroPressed
                 targetState: zeroState
             }
-            DSM.SignalTransition {
-                signal: addsubPressed
-                onTriggered: {
-                    replaceLastOperator();
-                }
-            }
-            DSM.SignalTransition {
-                signal: muldivPressed
-                onTriggered: {
-                    replaceLastOperator();
-                }
-            }
-            DSM.SignalTransition {
-                signal: equalPressed
-                targetState: resultState
-                onTriggered: {
-                    buffer = "0";
-                    calculateAll();
+
+            DSM.State {
+                id: computedState
+
+                onEntered: {
+                    display = operator2 ? buffer : operand1.toString();
                     buffer = "";
                 }
+                DSM.SignalTransition {
+                    signal: addsubPressed
+                    onTriggered: {
+                        replaceLastOperator();
+                    }
+                }
+                DSM.SignalTransition {
+                    signal: muldivPressed
+                    onTriggered: {
+                        replaceLastOperator();
+                    }
+                }
+                DSM.SignalTransition {
+                    signal: equalPressed
+                    targetState: resultState
+                    onTriggered: {
+                        buffer = operand1.toString();
+                        operand2 = 0.00;
+                        operator2 = "";
+                        calculateAll();
+                    }
+                }
             }
-        }
 
-        DSM.State {
-            id: resultState
+            DSM.State {
+                id: resultState
 
-            onEntered: {
-                buffer = buffer ? buffer : operand1.toString();
-                display = result.toString();
-            }
-            onExited: {
-                buffer = "0";
-                operator1 = "";
-            }
-            DSM.SignalTransition {
-                signal: equalPressed
-                onTriggered: {
-                    // Repeat the last operation using previous buffer and operator.
-                    calculateAll();
+                onEntered: {
                     display = result.toString();
                 }
-            }
-            DSM.SignalTransition {
-                signal: digitPressed
-                targetState: digitState
-            }
-            DSM.SignalTransition {
-                signal: pointPressed
-                targetState: pointState
-            }
-            DSM.SignalTransition {
-                signal: zeroPressed
-                targetState: zeroState
-            }
-            DSM.SignalTransition {
-                signal: addsubPressed
-                targetState: computedState
-                onTriggered: {
-                    calculateAll();
-                    operator1 = key;
+                onExited: {
+                    buffer = "0";
+                    operator1 = "";
                 }
-            }
-            DSM.SignalTransition {
-                signal: muldivPressed
-                targetState: computedState
-                onTriggered: {
-                    calculateLast();
+                DSM.SignalTransition {
+                    signal: equalPressed
+                    onTriggered: {
+                        // Repeat the last operation using
+                        // previous buffer and operator.
+                        calculateAll();
+                        display = result.toString();
+                    }
                 }
-            }
-        }
-
-        DSM.State {
-            id: errorState
-            onEntered: {
-                display = errorMessage;
+                DSM.SignalTransition {
+                    signal: addsubPressed
+                    targetState: computedState
+                    onTriggered: {
+                        operator1 = key;  // Override operator1 setting in onExited.
+                    }
+                }
+                DSM.SignalTransition {
+                    signal: muldivPressed
+                    targetState: computedState
+                    onTriggered: {
+                        operator1 = key;  // Override operator1 setting in onExited.
+                    }
+                }
             }
         }
     }
