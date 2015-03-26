@@ -5,18 +5,18 @@ import "." as App
 DSM.StateMachine {
     id: calculatorStateMachine
 
-    property string acceptedKey: ""
-    property string attemptedKey: ""
-    property string buffer: ""
-    property string display: ""
-    property string errorMessage: ""
-    property string key: ""
-    property real operand1: 0.00
-    property real operand2: 0.00
-    property string operator1: ""
-    property string operator2: ""
-    property real result: 0.00
-    property bool validKey: false
+    property string acceptedKey
+    property string attemptedKey
+    property string buffer
+    property string display
+    property string errorMessage
+    property string key
+    property real operand1
+    property real operand2
+    property string operator1
+    property string operator2
+    property real result
+    property bool validKey
 
     signal addsubPressed()
     signal clearPressed()
@@ -25,13 +25,6 @@ DSM.StateMachine {
     signal muldivPressed()
     signal pointPressed()
     signal zeroPressed()
-
-    function keyPressed(event, source) {
-        key = event.text;
-        if (validKey) {
-            event.accepted = true;
-        }
-    }
 
     function reset() {
         acceptedKey = "";
@@ -46,6 +39,13 @@ DSM.StateMachine {
         operator2 = "";
         result = 0.00;
         validKey = false;
+    }
+
+    function keyPressed(event, source) {
+        key = event.text;
+        if (validKey) {
+            event.accepted = true;
+        }
     }
 
     onKeyChanged: {
@@ -97,6 +97,83 @@ DSM.StateMachine {
         key = ""
     }
 
+    function calculateAll() {
+        var num = Number(buffer.valueOf());
+        if (operator2) {
+            switch (operator2) {
+                case "*":
+                    num *= operand2;
+                    break;
+                case "/":
+                    num /= operand2;
+                    break;
+            }
+            operator2 = "";
+            operand2 = 0.00;
+        }
+        if (operator1) {
+            switch (operator1) {
+                case "+":
+                    operand1 += num;
+                    break;
+                case "-":
+                    operand1 -= num;
+                    break;
+                case "*":
+                    operand1 *= num;
+                    break;
+                case "/":
+                    operand1 /= num;
+                    break;
+            }
+        } else {
+            operand1 = num;
+        }
+        result = operand1;
+    }
+
+    function calculateLast() {
+        var num = Number(buffer.valueOf());
+        if (operator2) {
+            switch (operator2) {
+                case "*":
+                    operand2 *= num;
+                    break;
+                case "/":
+                    operand2 /= num;
+                    break;
+            }
+            operator2 = key;
+        } else if (operator1) {
+            switch (operator1) {
+                case "*":
+                    operand1 *= num;
+                    operator1 = key;
+                    break;
+                case "/":
+                    operand1 /= num;
+                    operator1 = key;
+                    break;
+                case "+":
+                case "-":
+                    operand2 = num;
+                    operator2 = key;
+                    break;
+            }
+        } else {
+            operand1 = num;
+            operator1 = key;
+        }
+    }
+
+    function replaceLastOperator() {
+        if (operator2) {
+            operator2 = key;
+        } else {
+            operator1 = key;
+        }
+    }
+
     initialState: clearState
     running: true
 
@@ -105,19 +182,49 @@ DSM.StateMachine {
 
         initialState: accumulateState
 
+        onEntered: {
+            reset();
+        }
+
         DSM.SignalTransition {
             signal: clearPressed
             targetState: clearState
         }
 
-        onEntered: {
-            console.log("clear onEntered");
-            reset();
-        }
-
         DSM.State {
             id: accumulateState
             initialState: zeroState
+
+            DSM.SignalTransition {
+                signal: digitPressed
+                targetState: digitState
+            }
+            DSM.SignalTransition {
+                signal: pointPressed
+                targetState: pointState
+            }
+            DSM.SignalTransition {
+                signal: addsubPressed
+                targetState: computedState
+                onTriggered: {
+                    calculateAll();
+                    operator1 = key;
+                }
+            }
+            DSM.SignalTransition {
+                signal: muldivPressed
+                targetState: computedState
+                onTriggered: {
+                    calculateLast();
+                }
+            }
+            DSM.SignalTransition {
+                signal: equalPressed
+                targetState: resultState
+                onTriggered: {
+                    calculateAll();
+                }
+            }
 
             DSM.State {
                 id: digitState
@@ -130,9 +237,11 @@ DSM.StateMachine {
                     targetState: digitState
                 }
             }
+
             DSM.State {
                 id: pointState
                 onEntered: {
+                    buffer = buffer ? buffer : "0";
                     buffer += key;
                     display = buffer;
                 }
@@ -148,6 +257,7 @@ DSM.StateMachine {
                     targetState: pointState
                 }
             }
+
             DSM.State {
                 id: zeroState
                 onEntered: {
@@ -158,66 +268,15 @@ DSM.StateMachine {
                     signal: zeroPressed
                 }
             }
-            DSM.SignalTransition {
-                signal: digitPressed
-                targetState: digitState
-            }
-            DSM.SignalTransition {
-                signal: pointPressed
-                targetState: pointState
-            }
-            DSM.SignalTransition {
-                signal: addsubPressed
-                targetState: computedState
-                onTriggered: {
-                    if (operator2) {
-                        switch (operator2) {
-                            case "*":
-                                operand2 *= Number(buffer.valueOf());
-                                break;
-                            case "/":
-                                operand2 /= Number(buffer.valueOf());
-                                break;
-                        }
-                        operator2 = "";
-                        switch (operator1) {
-                            case "+":
-                                operand1 += operand2;
-                                break;
-                            case "-":
-                                operand1 -= operand2;
-                                break;
-                        }
-                        operand2 = 0.00;
-                    } else if (operator1) {
-                        switch (operator1) {
-                            case "+":
-                                operand1 += Number(buffer.valueOf());
-                                break;
-                            case "-":
-                                operand1 -= Number(buffer.valueOf());
-                                break;
-                        }
-                    } else {
-                        operand1 = Number(buffer.valueOf());
-                    }
-                    buffer = "";
-                    operator1 = key;
-                }
-            }
         }
 
         DSM.State {
             id: computedState
 
             onEntered: {
-                if (operator2) {
-                    display = operand2.toString();
-                } else {
-                    display = operand1.toString();
-                }
+                display = operator2 ? buffer : operand1.toString();
+                buffer = "";
             }
-
             DSM.SignalTransition {
                 signal: digitPressed
                 targetState: digitState
@@ -229,6 +288,75 @@ DSM.StateMachine {
             DSM.SignalTransition {
                 signal: zeroPressed
                 targetState: zeroState
+            }
+            DSM.SignalTransition {
+                signal: addsubPressed
+                onTriggered: {
+                    replaceLastOperator();
+                }
+            }
+            DSM.SignalTransition {
+                signal: muldivPressed
+                onTriggered: {
+                    replaceLastOperator();
+                }
+            }
+            DSM.SignalTransition {
+                signal: equalPressed
+                targetState: resultState
+                onTriggered: {
+                    buffer = "0";
+                    calculateAll();
+                    buffer = "";
+                }
+            }
+        }
+
+        DSM.State {
+            id: resultState
+
+            onEntered: {
+                buffer = buffer ? buffer : operand1.toString();
+                display = result.toString();
+            }
+            onExited: {
+                buffer = "0";
+                operator1 = "";
+            }
+            DSM.SignalTransition {
+                signal: equalPressed
+                onTriggered: {
+                    // Repeat the last operation using previous buffer and operator.
+                    calculateAll();
+                    display = result.toString();
+                }
+            }
+            DSM.SignalTransition {
+                signal: digitPressed
+                targetState: digitState
+            }
+            DSM.SignalTransition {
+                signal: pointPressed
+                targetState: pointState
+            }
+            DSM.SignalTransition {
+                signal: zeroPressed
+                targetState: zeroState
+            }
+            DSM.SignalTransition {
+                signal: addsubPressed
+                targetState: computedState
+                onTriggered: {
+                    calculateAll();
+                    operator1 = key;
+                }
+            }
+            DSM.SignalTransition {
+                signal: muldivPressed
+                targetState: computedState
+                onTriggered: {
+                    calculateLast();
+                }
             }
         }
 
