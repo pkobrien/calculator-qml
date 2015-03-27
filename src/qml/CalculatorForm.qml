@@ -10,7 +10,10 @@ Rectangle {
 
     property alias calculatorStateMachine: csm
 
-    App.CalculatorStateMachine { id: csm }
+    App.CalculatorStateMachine {
+        id: csm
+        running: true
+    }
 
     Grid {
         anchors.fill: parent

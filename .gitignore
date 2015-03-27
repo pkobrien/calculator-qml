@@ -1,8 +1,10 @@
 # Qt Creator
-*.pri
-*.pro
 *.pro.user
 *.qmlproject.user
+Makefile
+Makefile.*
+debug/
+release/
 
 # Spyder Python IDE
 .spyderproject

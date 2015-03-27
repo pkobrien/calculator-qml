@@ -158,7 +158,6 @@ DSM.StateMachine {
     }
 
     initialState: clearState
-    running: true
 
     DSM.State {
         id: clearState
