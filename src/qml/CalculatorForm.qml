@@ -59,7 +59,7 @@ Rectangle {
             text: qsTr("Operand 1:")
         }
         Label {
-            text: csm.operand1 ? csm.operand1 : "..."
+            text: csm.operand1
         }
 
         Label {
@@ -73,7 +73,7 @@ Rectangle {
             text: qsTr("Operand 2:")
         }
         Label {
-            text: csm.operand2 ? csm.operand2 : "..."
+            text: csm.operand2
         }
 
         Label {
@@ -87,7 +87,7 @@ Rectangle {
             text: qsTr("Result:")
         }
         Label {
-            text: csm.result ? csm.result : "..."
+            text: csm.result
         }
     }
 }
