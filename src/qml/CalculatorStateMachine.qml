@@ -83,6 +83,7 @@ DSM.StateMachine {
                         num /= operand2;
                         break;
                 }
+                buffer = num.toString();
                 operand2 = 0.00;
                 operator2 = "";
             }

@@ -48,5 +48,18 @@ Item {
             compare(csm.display, "4");
             compare(csm.result, 4);
         }
+
+        function test_repeated_equals() {
+            csm.process("2");
+            csm.process("+");
+            csm.process("3");
+            csm.process("*");
+            csm.process("4");
+            csm.process("=");
+            csm.process("=");
+            csm.process("=");
+            compare(csm.display, "38");
+            compare(csm.result, 38);
+        }
     }
 }
