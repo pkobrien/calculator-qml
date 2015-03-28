@@ -45,7 +45,7 @@ Item {
             engine.process("+");
             engine.process("2");
             engine.process("=");
-            compare(engine.display, "4");
+            compare(engine.display, "4.");
             compare(engine.result, 4);
         }
 
@@ -58,7 +58,7 @@ Item {
             engine.process("=");
             engine.process("=");
             engine.process("=");
-            compare(engine.display, "38");
+            compare(engine.display, "38.");
             compare(engine.result, 38);
         }
     }

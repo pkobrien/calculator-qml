@@ -23,38 +23,8 @@ DSM.StateMachine {
     signal pointPressed()
     signal zeroPressed()
 
-    function process(input) {
-        key = input;
-        var accepted = true;
-        switch (key) {
-            default:
-                accepted = false;
-                break;
-            case "1": case "2": case "3":
-            case "4": case "5": case "6":
-            case "7": case "8": case "9":
-                digitPressed();
-                break;
-            case "0":
-                zeroPressed();
-                break;
-            case ".":
-                pointPressed();
-                break;
-            case "c":
-                clearPressed();
-                break;
-            case "=":
-                equalPressed();
-                break;
-            case "+": case "-":
-                addsubPressed();
-                break;
-            case "*": case "/":
-                muldivPressed();
-                break;
-        }
-        return accepted;
+    function addTrailingDecimal(value) {
+        return value.indexOf(".") === -1 ? value + "." : value;
     }
 
     function calculateAll() {
@@ -124,6 +94,39 @@ DSM.StateMachine {
         }
     }
 
+    function process(input) {
+        key = input;
+        var accepted = true;
+        switch (key) {
+            default:
+                accepted = false;
+                break;
+            case "1": case "2": case "3":
+            case "4": case "5": case "6":
+            case "7": case "8": case "9":
+                digitPressed();
+                break;
+            case "0":
+                zeroPressed();
+                break;
+            case ".":
+                pointPressed();
+                break;
+            case "c":
+                clearPressed();
+                break;
+            case "=":
+                equalPressed();
+                break;
+            case "+": case "-":
+                addsubPressed();
+                break;
+            case "*": case "/":
+                muldivPressed();
+                break;
+        }
+        return accepted;
+    }
 
     /* TODO
 
@@ -171,7 +174,11 @@ DSM.StateMachine {
 
         DSM.State {
             id: errorState
-            onEntered: display = Qt.binding(function() { return errorMessage; });
+            onEntered: display = Qt.binding(show);
+
+            function show() {
+                return errorMessage;
+            }
         }
 
         DSM.State {
@@ -185,7 +192,7 @@ DSM.StateMachine {
             }
 
             function show() {
-                return buffer.indexOf(".") === -1 ? buffer + "." : buffer;
+                return addTrailingDecimal(buffer);
             }
 
             DSM.SignalTransition {
@@ -274,7 +281,8 @@ DSM.StateMachine {
                 }
 
                 function show() {
-                    return operator2 ? buffer : operand1.toString();
+                    var value = operator2 ? buffer : operand1.toString();
+                    return addTrailingDecimal(value);
                 }
 
                 function updateOperator() {
@@ -309,12 +317,17 @@ DSM.StateMachine {
 
                 onEntered: {
                     calculateAll();
-                    display = Qt.binding(function() { return result.toString(); });
+                    display = Qt.binding(show);
                 }
                 onExited: {
                     buffer = "0";
                     operator1 = "";
                 }
+
+                function show() {
+                    return addTrailingDecimal(result.toString());
+                }
+
                 DSM.SignalTransition {
                     signal: equalPressed
                     onTriggered: {
