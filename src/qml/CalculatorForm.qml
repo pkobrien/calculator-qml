@@ -12,11 +12,12 @@ Rectangle {
     property string acceptedKey: accepted ? attemptedKey : "";
     property string attemptedKey: ""
 
-    property alias csm: csm
+    property alias engine: engine
 
-    App.CalculatorStateMachine {
-        id: csm
-        running: true
+    App.CalculatorEngine {
+        id: engine
+
+        Component.onCompleted: engine.start();
     }
 
     Grid {
@@ -41,21 +42,21 @@ Rectangle {
             text: qsTr("Display:")
         }
         Label {
-            text: csm.display ? csm.display : "..."
+            text: engine.display ? engine.display : "..."
         }
 
         Label {
             text: qsTr("Expression:")
         }
         Label {
-            text: csm.expression ? csm.expression : "..."
+            text: engine.expression ? engine.expression : "..."
         }
 
         Label {
             text: qsTr("Result:")
         }
         Label {
-            text: csm.result
+            text: engine.result
         }
     }
 }

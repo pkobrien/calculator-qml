@@ -9,9 +9,9 @@ App.CalculatorForm {
     Keys.onPressed: {
         App.Actions.keyPressed(event, calculator);
         if (!event.accepted) {
-            calculator.attemptedKey = event.text;
-            calculator.accepted = csm.process(attemptedKey);
-            event.accepted = calculator.accepted;
+            attemptedKey = event.text;
+            accepted = engine.process(attemptedKey);
+            event.accepted = accepted;
         }
     }
 }
