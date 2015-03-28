@@ -3,70 +3,157 @@ import QtQml.StateMachine 1.0 as DSM
 import "." as App
 
 DSM.StateMachine {
-    id: calculatorStateMachine
+    id: external
 
-    property bool accepted
-    property string acceptedKey
-    property string attemptedKey
-    property string buffer
+    // Public API
+
     property string display
-    property string errorMessage
-    property string key
-    property real operand1
-    property real operand2
-    property string operator1
-    property string operator2
+    property string expression
+
     property real result
 
-    signal addsubPressed()
-    signal clearPressed()
-    signal digitPressed()
-    signal equalPressed()
-    signal muldivPressed()
-    signal pointPressed()
-    signal zeroPressed()
-
-    function keyPressed(event, source) {
-        key = event.text;
-        event.accepted = accepted;
+    function process(input) {
+        return internal.process(input);
     }
 
-    onKeyChanged: {
-        if (!key) {
-            return;
+    // Private Internals
+
+    QtObject {
+        id: internal
+
+        property string buffer
+        property string errorMessage
+        property string key
+        property real operand1
+        property real operand2
+        property string operator1
+        property string operator2
+        property real result
+
+        signal addsubPressed()
+        signal clearPressed()
+        signal digitPressed()
+        signal equalPressed()
+        signal muldivPressed()
+        signal pointPressed()
+        signal zeroPressed()
+
+        onResultChanged: external.result = internal.result;
+
+        function process(input) {
+            key = input;
+            var accepted = true;
+            switch (key) {
+                default:
+                    accepted = false;
+                    break;
+                case "1": case "2": case "3": case "4": case "5": case "6": case "7": case "8": case "9":
+                    digitPressed();
+                    break;
+                case "0":
+                    zeroPressed();
+                    break;
+                case ".":
+                    pointPressed();
+                    break;
+                case "c":
+                    clearPressed();
+                    break;
+                case "=":
+                    equalPressed();
+                    break;
+                case "+": case "-":
+                    addsubPressed();
+                    break;
+                case "*": case "/":
+                    muldivPressed();
+                    break;
+            }
+            return accepted;
         }
-        attemptedKey = key;
-        accepted = true;
-        switch (key) {
-            default:
-                accepted = false;
-                break;
-            case "1": case "2": case "3": case "4": case "5": case "6": case "7": case "8": case "9":
-                digitPressed();
-                break;
-            case "0":
-                zeroPressed();
-                break;
-            case ".":
-                pointPressed();
-                break;
-            case "c":
-                clearPressed();
-                break;
-            case "=":
-                equalPressed();
-                break;
-            case "+": case "-":
-                addsubPressed();
-                break;
-            case "*": case "/":
-                muldivPressed();
-                break;
+
+        function calculateAll() {
+            var num = Number(buffer.valueOf());
+            if (operator2) {
+                switch (operator2) {
+                    case "*":
+                        num *= operand2;
+                        break;
+                    case "/":
+                        num /= operand2;
+                        break;
+                }
+                operand2 = 0.00;
+                operator2 = "";
+            }
+            if (operator1) {
+                switch (operator1) {
+                    case "+":
+                        operand1 += num;
+                        break;
+                    case "-":
+                        operand1 -= num;
+                        break;
+                    case "*":
+                        operand1 *= num;
+                        break;
+                    case "/":
+                        operand1 /= num;
+                        break;
+                }
+            } else {
+                operand1 = num;
+            }
+            result = operand1;
         }
-        acceptedKey = accepted ? key : "";
-        // Set key to empty string so duplicated keys still trigger onKeyChanged.
-        key = ""
+
+        function calculateLast() {
+            var num = Number(buffer.valueOf());
+            if (operator2) {
+                switch (operator2) {
+                    case "*":
+                        operand2 *= num;
+                        break;
+                    case "/":
+                        operand2 /= num;
+                        break;
+                }
+                operator2 = "";
+            } else if (operator1) {
+                switch (operator1) {
+                    case "*":
+                        operand1 *= num;
+                        operator1 = "";
+                        break;
+                    case "/":
+                        operand1 /= num;
+                        operator1 = "";
+                        break;
+                    case "+": case "-":
+                        operand2 = num;
+                        break;
+                }
+            } else {
+                operand1 = num;
+            }
+        }
     }
+
+    /* TODO
+
+    Currently infix. Should also support postfix (RPN). And maybe Tenkey.
+
+    "00" and "000" keys for entering large numbers.
+
+    MC	Memory Clear
+    M+	Memory Addition
+    M-	Memory Subtraction
+    MR	Memory Recall
+    C or AC	All Clear
+    CE	Clear (last) Entry; sometimes called CE/C: a first press clears the last entry (CE), a second press clears all (C)
+    ±	Toggle positive/negative number
+
+    */
 
     initialState: clearState
 
@@ -78,71 +165,74 @@ DSM.StateMachine {
         onEntered: reset();
 
         function reset() {
-            accepted = false;
-            acceptedKey = "";
-            attemptedKey = "";
-            buffer = "";
-            display = "";
-            errorMessage = "";
-            key = "";
-            operand1 = 0.00;
-            operand2 = 0.00;
-            operator1 = "";
-            operator2 = "";
-            result = 0.00;
+            // Public
+            external.display = "";
+            external.expression = "";
+            // Private
+            internal.buffer = "";
+            internal.errorMessage = "";
+            internal.key = "";
+            internal.operand1 = 0.0;
+            internal.operand2 = 0.0;
+            internal.operator1 = "";
+            internal.operator2 = "";
+            internal.result = 0.0;
         }
 
         DSM.SignalTransition {
-            signal: clearPressed
+            signal: internal.clearPressed
             targetState: clearState
         }
 
         DSM.State {
             id: errorState
-            onEntered: display = Qt.binding(function() { return errorMessage; });
+            onEntered: external.display = Qt.binding(function() { return internal.errorMessage; });
         }
 
         DSM.State {
             id: accumulateState
             initialState: zeroState
 
-            onEntered: {
-                display = Qt.binding(function() { return buffer.indexOf(".") === -1? buffer + "." : buffer; });
+            onEntered: external.display = Qt.binding(show);
+
+            function accumulate() { internal.buffer += internal.key; }
+
+            function show() {
+                return internal.buffer.indexOf(".") === -1 ?
+                       internal.buffer + "." : internal.buffer;
             }
 
-            function accumulate() { buffer += key; }
-
             DSM.SignalTransition {
-                signal: digitPressed
+                signal: internal.digitPressed
                 targetState: digitState
             }
             DSM.SignalTransition {
-                signal: pointPressed
+                signal: internal.pointPressed
                 targetState: pointState
             }
             DSM.SignalTransition {
-                signal: addsubPressed
+                signal: internal.addsubPressed
                 targetState: operatorState
-                onTriggered: computeState.calculateAll();
+                onTriggered: internal.calculateAll();
             }
             DSM.SignalTransition {
-                signal: muldivPressed
+                signal: internal.muldivPressed
                 targetState: operatorState
-                onTriggered: computeState.calculateLast();
+                onTriggered: internal.calculateLast();
             }
             DSM.SignalTransition {
-                signal: equalPressed
+                signal: internal.equalPressed
                 targetState: resultState
-                guard: operator1
+                guard: internal.operator1
             }
 
             DSM.State {
                 id: digitState
                 onEntered: {
-                    buffer = (buffer === "0") ? key : buffer + key;
+                    internal.buffer = (internal.buffer === "0") ? internal.key : internal.buffer + internal.key;
                 }
                 DSM.SignalTransition {
-                    signal: zeroPressed
+                    signal: internal.zeroPressed
                     onTriggered: accumulateState.accumulate();
                 }
             }
@@ -150,17 +240,17 @@ DSM.StateMachine {
             DSM.State {
                 id: pointState
                 onEntered: {
-                    buffer = buffer ? buffer + "." : "0.";
+                    internal.buffer = internal.buffer ? internal.buffer + "." : "0.";
                 }
                 DSM.SignalTransition {
-                    signal: digitPressed
+                    signal: internal.digitPressed
                     onTriggered: accumulateState.accumulate();
                 }
                 DSM.SignalTransition {
-                    signal: pointPressed
+                    signal: internal.pointPressed
                 }
                 DSM.SignalTransition {
-                    signal: zeroPressed
+                    signal: internal.zeroPressed
                     onTriggered: accumulateState.accumulate();
                 }
             }
@@ -168,10 +258,10 @@ DSM.StateMachine {
             DSM.State {
                 id: zeroState
                 onEntered: {
-                    buffer = "0";
+                    internal.buffer = "0";
                 }
                 DSM.SignalTransition {
-                    signal: zeroPressed
+                    signal: internal.zeroPressed
                 }
             }
         }
@@ -179,82 +269,16 @@ DSM.StateMachine {
         DSM.State {
             id: computeState
 
-            function calculateAll() {
-                var num = Number(buffer.valueOf());
-                if (operator2) {
-                    switch (operator2) {
-                        case "*":
-                            num *= operand2;
-                            break;
-                        case "/":
-                            num /= operand2;
-                            break;
-                    }
-                    operand2 = 0.00;
-                    operator2 = "";
-                }
-                if (operator1) {
-                    switch (operator1) {
-                        case "+":
-                            operand1 += num;
-                            break;
-                        case "-":
-                            operand1 -= num;
-                            break;
-                        case "*":
-                            operand1 *= num;
-                            break;
-                        case "/":
-                            operand1 /= num;
-                            break;
-                    }
-                } else {
-                    operand1 = num;
-                }
-                result = operand1;
-            }
-
-            function calculateLast() {
-                var num = Number(buffer.valueOf());
-                if (operator2) {
-                    switch (operator2) {
-                        case "*":
-                            operand2 *= num;
-                            break;
-                        case "/":
-                            operand2 /= num;
-                            break;
-                    }
-                    operator2 = "";
-                } else if (operator1) {
-                    switch (operator1) {
-                        case "*":
-                            operand1 *= num;
-                            operator1 = "";
-                            break;
-                        case "/":
-                            operand1 /= num;
-                            operator1 = "";
-                            break;
-                        case "+": case "-":
-                            operand2 = num;
-                            break;
-                    }
-                } else {
-                    operand1 = num;
-                }
-            }
-
             DSM.SignalTransition {
-                signal: digitPressed
+                signal: internal.digitPressed
                 targetState: digitState
             }
             DSM.SignalTransition {
-                signal: pointPressed
+                signal: internal.pointPressed
                 targetState: pointState
             }
             DSM.SignalTransition {
-                signal: zeroPressed
+                signal: internal.zeroPressed
                 targetState: zeroState
             }
 
@@ -263,35 +287,39 @@ DSM.StateMachine {
 
                 onEntered: {
                     updateOperator();
-                    display = Qt.binding(function() { return operator2 ? buffer : operand1.toString(); });
+                    external.display = Qt.binding(show);
                 }
                 onExited: {
-                    buffer = "";
+                    internal.buffer = "";
+                }
+
+                function show() {
+                    return internal.operator2 ? internal.buffer : internal.operand1.toString();
                 }
 
                 function updateOperator() {
-                    if (operand2) {
-                        operator2 = key;
+                    if (internal.operand2) {
+                        internal.operator2 = internal.key;
                     } else {
-                        operator1 = key;
+                        internal.operator1 = internal.key;
                     }
                 }
 
                 DSM.SignalTransition {
-                    signal: addsubPressed
+                    signal: internal.addsubPressed
                     onTriggered: operatorState.updateOperator();
                 }
                 DSM.SignalTransition {
-                    signal: muldivPressed
+                    signal: internal.muldivPressed
                     onTriggered: operatorState.updateOperator();
                 }
                 DSM.SignalTransition {
-                    signal: equalPressed
+                    signal: internal.equalPressed
                     targetState: resultState
                     onTriggered: {
-                        buffer = operand1.toString();
-                        operand2 = 0.00;
-                        operator2 = "";
+                        internal.buffer = internal.operand1.toString();
+                        internal.operand2 = 0.00;
+                        internal.operator2 = "";
                     }
                 }
             }
@@ -300,27 +328,27 @@ DSM.StateMachine {
                 id: resultState
 
                 onEntered: {
-                    computeState.calculateAll();
-                    display = Qt.binding(function() { return result.toString(); });
+                    internal.calculateAll();
+                    external.display = Qt.binding(function() { return internal.result.toString(); });
                 }
                 onExited: {
-                    buffer = "0";
-                    operator1 = "";
+                    internal.buffer = "0";
+                    internal.operator1 = "";
                 }
                 DSM.SignalTransition {
-                    signal: equalPressed
+                    signal: internal.equalPressed
                     onTriggered: {
                         // Repeat the last operation using
                         // previous buffer and operator.
-                        computeState.calculateAll();
+                        internal.calculateAll();
                     }
                 }
                 DSM.SignalTransition {
-                    signal: addsubPressed
+                    signal: internal.addsubPressed
                     targetState: operatorState
                 }
                 DSM.SignalTransition {
-                    signal: muldivPressed
+                    signal: internal.muldivPressed
                     targetState: operatorState
                 }
             }

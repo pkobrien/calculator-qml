@@ -41,10 +41,10 @@ Item {
         }
 
         function test_basic_addition() {
-            csm.key = "2";
-            csm.key = "+";
-            csm.key = "2";
-            csm.key = "=";
+            csm.process("2");
+            csm.process("+");
+            csm.process("2");
+            csm.process("=");
             compare(csm.display, "4");
             compare(csm.result, 4);
         }

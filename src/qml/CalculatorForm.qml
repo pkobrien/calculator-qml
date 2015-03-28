@@ -8,7 +8,11 @@ Rectangle {
     width: 400
     height: 400
 
-    property alias calculatorStateMachine: csm
+    property bool accepted
+    property string acceptedKey: accepted ? attemptedKey : "";
+    property string attemptedKey: ""
+
+    property alias csm: csm
 
     App.CalculatorStateMachine {
         id: csm
@@ -18,27 +22,19 @@ Rectangle {
     Grid {
         anchors.fill: parent
         columns: 2
-        rows: 10
 
         Label {
             text: qsTr("Attempted Key:")
         }
         Label {
-            text: csm.attemptedKey ? csm.attemptedKey : "..."
+            text: calculator.attemptedKey ? calculator.attemptedKey : "..."
         }
 
         Label {
             text: qsTr("Accepted Key:")
         }
         Label {
-            text: csm.acceptedKey ? csm.acceptedKey : "..."
-        }
-
-        Label {
-            text: qsTr("Buffer:")
-        }
-        Label {
-            text: csm.buffer ? csm.buffer : "..."
+            text: calculator.acceptedKey ? calculator.acceptedKey : "..."
         }
 
         Label {
@@ -49,38 +45,10 @@ Rectangle {
         }
 
         Label {
-            text: qsTr("Error Message:")
+            text: qsTr("Expression:")
         }
         Label {
-            text: csm.errorMessage ? csm.errorMessage : "..."
-        }
-
-        Label {
-            text: qsTr("Operand 1:")
-        }
-        Label {
-            text: csm.operand1
-        }
-
-        Label {
-            text: qsTr("Operator 1:")
-        }
-        Label {
-            text: csm.operator1 ? csm.operator1 : "..."
-        }
-
-        Label {
-            text: qsTr("Operand 2:")
-        }
-        Label {
-            text: csm.operand2
-        }
-
-        Label {
-            text: qsTr("Operator 2:")
-        }
-        Label {
-            text: csm.operator2 ? csm.operator2 : "..."
+            text: csm.expression ? csm.expression : "..."
         }
 
         Label {

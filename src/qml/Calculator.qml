@@ -5,10 +5,13 @@ App.CalculatorForm {
     id: calculator
 
     focus: true
+
     Keys.onPressed: {
         App.Actions.keyPressed(event, calculator);
         if (!event.accepted) {
-            calculatorStateMachine.keyPressed(event, calculator);
+            calculator.attemptedKey = event.text;
+            calculator.accepted = csm.process(attemptedKey);
+            event.accepted = calculator.accepted;
         }
     }
 }
