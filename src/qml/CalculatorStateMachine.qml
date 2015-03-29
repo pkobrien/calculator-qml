@@ -151,10 +151,13 @@ DSM.StateMachine {
 
     function updateOperator() {
         if (operand2) {
+            expression = (expression.slice(-2, -1) === operator2) ? expression.slice(0, -3) : expression
             operator2 = key;
         } else {
+            expression = (expression.slice(-2, -1) === operator1) ? expression.slice(0, -3) : expression
             operator1 = key;
         }
+        expression += " %1 ".arg(key);
     }
 
     /* TODO
@@ -201,7 +204,10 @@ DSM.StateMachine {
             id: accumulateState
             initialState: zeroState
 
-            onEntered: display = Qt.binding(show);
+            onEntered: {
+                display = Qt.binding(show);
+//                expression += " "
+            }
 
             function show() {
                 return addTrailingDecimal(buffer);
@@ -333,6 +339,7 @@ DSM.StateMachine {
                 onEntered: {
                     calculateAll();
                     display = Qt.binding(show);
+                    expression += " = " + result;
                 }
 
                 onExited: clear();
@@ -340,6 +347,7 @@ DSM.StateMachine {
                 function clear() {
                     buffer = "";
                     operator1 = "";
+                    expression = "";
                 }
 
                 function show() {
