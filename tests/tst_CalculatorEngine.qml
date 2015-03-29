@@ -6,38 +6,102 @@ import "../src/qml" as App
 Item {
 
     TestCase {
-        name: "engine-off"
+        id: util
+        name: "shared-functions"
 
-        App.CalculatorEngine { id: engineOff }
-
-        function test_not_running() {
-            wait(10);
-            verify(!engineOff.running);
+        function calculate_and_compare(engine, data) {
+            data.forEach(function(element, index) {
+                var key = element[0];
+                var display = element[1];
+                var expression = element[2];
+                var result = element[3];
+                var msg = "data index " + index + "::";
+                engine.process(key);
+                compare(engine.display, display, msg + "wrong engine.display");
+                compare(engine.expression, expression, msg + "wrong engine.expression");
+                compare(engine.result, result, msg + "wrong engine.result");
+            });
         }
     }
 
     TestCase {
-        name: "engine"
+        id: offCase
+        name: "engine-off"
 
-        App.CalculatorEngine { id: engine }
+        property var engine: App.CalculatorEngine {  }
 
-        SignalSpy {
-            id: spy
-            target: engine
+        function test_not_running() {
+            wait(10);
+            verify(!engine.running);
+        }
+    }
+
+    TestCase {
+        id: onOffCase
+
+        name: "engine-on-off"
+
+        property var engine: App.CalculatorEngine {  }
+
+        property var start: SignalSpy {
+            target: onOffCase.engine
             signalName: "started"
+        }
+
+        property var stop: SignalSpy {
+            target: onOffCase.engine
+            signalName: "stopped"
+        }
+
+        function test_start_stop() {
+            engine.start();
+            start.wait(10);
+            verify(engine.running);
+            compare(engine.display, "0.");
+            compare(engine.expression, "");
+            compare(engine.result, 0.0);
+            engine.stop();
+            stop.wait(10);
+            verify(!engine.running);
+        }
+    }
+
+    TestCase {
+        id: basicsCase
+
+        name: "engine-basics"
+
+        property var engine: App.CalculatorEngine {  }
+
+        property var start: SignalSpy {
+            target: basicsCase.engine
+            signalName: "started"
+        }
+
+        property var stop: SignalSpy {
+            target: basicsCase.engine
+            signalName: "stopped"
         }
 
         function init() {
             engine.start();
-            spy.wait(10);
+            start.wait(10);
         }
 
         function cleanup() {
-            engine.stop();
+            if (engine.running) {
+                engine.stop();
+                stop.wait(10);
+            }
         }
 
-        function test_running() {
-            verify(engine.running);
+        function test_accumulate() {
+            var data = [
+                ["1", "1.", "1", 0.0],
+                ["2", "12.", "12", 0.0],
+                ["3", "123.", "123", 0.0],
+            ]
+            util.calculate_and_compare(engine, data);
         }
 
         function test_basic_addition() {

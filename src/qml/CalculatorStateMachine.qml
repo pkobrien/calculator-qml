@@ -23,6 +23,14 @@ DSM.StateMachine {
     signal pointPressed()
     signal zeroPressed()
 
+    function accumulate() {
+        buffer = (buffer === "0") ? "" : buffer;
+        buffer = (!buffer && key === ".") ? "0" : buffer;
+        buffer = (!key) ? "0" : buffer;
+        buffer += key;
+        expression += key;
+    }
+
     function addTrailingDecimal(value) {
         return value.indexOf(".") === -1 ? value + "." : value;
     }
@@ -128,6 +136,27 @@ DSM.StateMachine {
         return accepted;
     }
 
+    function reset() {
+        display = "";
+        expression = "";
+        buffer = "";
+        errorMessage = "";
+        key = "";
+        operand1 = 0.0;
+        operand2 = 0.0;
+        operator1 = "";
+        operator2 = "";
+        result = 0.0;
+    }
+
+    function updateOperator() {
+        if (operand2) {
+            operator2 = key;
+        } else {
+            operator1 = key;
+        }
+    }
+
     /* TODO
 
     Currently infix. Should also support postfix (RPN). And maybe Tenkey.
@@ -154,19 +183,6 @@ DSM.StateMachine {
 
         onEntered: reset();
 
-        function reset() {
-            display = "";
-            expression = "";
-            buffer = "";
-            errorMessage = "";
-            key = "";
-            operand1 = 0.0;
-            operand2 = 0.0;
-            operator1 = "";
-            operator2 = "";
-            result = 0.0;
-        }
-
         DSM.SignalTransition {
             signal: clearPressed
             targetState: clearState
@@ -187,22 +203,10 @@ DSM.StateMachine {
 
             onEntered: display = Qt.binding(show);
 
-            function accumulate() {
-                buffer += key;
-            }
-
             function show() {
                 return addTrailingDecimal(buffer);
             }
 
-            DSM.SignalTransition {
-                signal: digitPressed
-                targetState: digitState
-            }
-            DSM.SignalTransition {
-                signal: pointPressed
-                targetState: pointState
-            }
             DSM.SignalTransition {
                 signal: addsubPressed
                 targetState: operatorState
@@ -221,32 +225,48 @@ DSM.StateMachine {
 
             DSM.State {
                 id: digitState
-                onEntered: buffer = (buffer === "0") ? key : buffer + key;
+                onEntered: accumulate();
+                DSM.SignalTransition {
+                    signal: digitPressed
+                    onTriggered: accumulate();
+                }
+                DSM.SignalTransition {
+                    signal: pointPressed
+                    targetState: pointState
+                }
                 DSM.SignalTransition {
                     signal: zeroPressed
-                    onTriggered: accumulateState.accumulate();
+                    onTriggered: accumulate();
                 }
             }
 
             DSM.State {
                 id: pointState
-                onEntered: buffer = buffer ? buffer + "." : "0.";
+                onEntered: accumulate();
                 DSM.SignalTransition {
                     signal: digitPressed
-                    onTriggered: accumulateState.accumulate();
+                    onTriggered: accumulate();
                 }
                 DSM.SignalTransition {
                     signal: pointPressed
                 }
                 DSM.SignalTransition {
                     signal: zeroPressed
-                    onTriggered: accumulateState.accumulate();
+                    onTriggered: accumulate();
                 }
             }
 
             DSM.State {
                 id: zeroState
-                onEntered: buffer = "0";
+                onEntered: accumulate();
+                DSM.SignalTransition {
+                    signal: digitPressed
+                    targetState: digitState
+                }
+                DSM.SignalTransition {
+                    signal: pointPressed
+                    targetState: pointState
+                }
                 DSM.SignalTransition {
                     signal: zeroPressed
                 }
@@ -276,7 +296,10 @@ DSM.StateMachine {
                     updateOperator();
                     display = Qt.binding(show);
                 }
-                onExited: {
+
+                onExited: clear();
+
+                function clear() {
                     buffer = "";
                 }
 
@@ -285,21 +308,13 @@ DSM.StateMachine {
                     return addTrailingDecimal(value);
                 }
 
-                function updateOperator() {
-                    if (operand2) {
-                        operator2 = key;
-                    } else {
-                        operator1 = key;
-                    }
-                }
-
                 DSM.SignalTransition {
                     signal: addsubPressed
-                    onTriggered: operatorState.updateOperator();
+                    onTriggered: updateOperator();
                 }
                 DSM.SignalTransition {
                     signal: muldivPressed
-                    onTriggered: operatorState.updateOperator();
+                    onTriggered: updateOperator();
                 }
                 DSM.SignalTransition {
                     signal: equalPressed
@@ -319,8 +334,11 @@ DSM.StateMachine {
                     calculateAll();
                     display = Qt.binding(show);
                 }
-                onExited: {
-                    buffer = "0";
+
+                onExited: clear();
+
+                function clear() {
+                    buffer = "";
                     operator1 = "";
                 }
 
