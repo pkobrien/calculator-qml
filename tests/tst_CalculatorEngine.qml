@@ -10,6 +10,7 @@ Item {
         name: "shared-functions"
 
         function calculate_and_compare(engine, data) {
+            // data is an array of arrays with [key, display, expression, result].
             data.forEach(function(element, index) {
                 var key = element[0];
                 var display = element[1];
@@ -20,6 +21,16 @@ Item {
                 compare(engine.display, display, msg + "wrong engine.display");
                 compare(engine.expression, expression, msg + "wrong engine.expression");
                 compare(engine.result, result, msg + "wrong engine.result");
+            });
+        }
+
+        function process(engine, keys) {
+            // keys can be a string, which will be split, or an array of strings.
+            if (typeof keys == "string") {
+                keys = keys.split(" ");
+            }
+            keys.forEach(function(key, index) {
+                engine.process(key);
             });
         }
     }
@@ -114,28 +125,24 @@ Item {
                 ["=", "987.6054216", "123.4506777 * 8 = 987.6054216", 987.6054216], // 16
                 ["0", "0.", "0", 987.6054216], // 17
                 ["=", "0.", "0", 987.6054216], // 18
-            ]
+            ];
             util.calculate_and_compare(engine, data);
         }
 
         function test_basic_addition() {
-            engine.process("2");
-            engine.process("+");
-            engine.process("2");
-            engine.process("=");
+            util.process(engine, "2 + 2 =");
             compare(engine.display, "4.");
             compare(engine.result, 4);
         }
 
         function test_repeated_equals() {
-            engine.process("2");
-            engine.process("+");
-            engine.process("3");
-            engine.process("*");
-            engine.process("4");
-            engine.process("=");
-            engine.process("=");
-            engine.process("=");
+            var keys = "2 + 3 * 4 = = =";
+            util.process(engine, keys);
+            compare(engine.display, "14.");
+            compare(engine.result, 14);
+            engine.config.equalKeyRepeatsLastOperation = true;
+            util.process(engine, "c");
+            util.process(engine, keys);
             compare(engine.display, "38.");
             compare(engine.result, 38);
         }

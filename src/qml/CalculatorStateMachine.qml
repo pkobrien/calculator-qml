@@ -4,6 +4,8 @@ import QtQml.StateMachine 1.0 as DSM
 DSM.StateMachine {
     id: csm
 
+    property alias config: config
+
     property string buffer
     property string display
     property string errorMessage
@@ -177,6 +179,12 @@ DSM.StateMachine {
 
     */
 
+    QtObject {
+        id: config
+
+        property bool equalKeyRepeatsLastOperation: false
+    }
+
     initialState: clearState
 
     DSM.State {
@@ -206,7 +214,6 @@ DSM.StateMachine {
 
             onEntered: {
                 display = Qt.binding(show);
-//                expression += " "
             }
 
             function show() {
@@ -225,8 +232,8 @@ DSM.StateMachine {
             }
             DSM.SignalTransition {
                 signal: equalPressed
-                targetState: resultState
                 guard: operator1
+                targetState: resultState
             }
 
             DSM.State {
@@ -356,8 +363,9 @@ DSM.StateMachine {
 
                 DSM.SignalTransition {
                     signal: equalPressed
+                    guard: csm.config.equalKeyRepeatsLastOperation
                     onTriggered: {
-                        // Repeat the last operation using
+                        // Repeat the last operation using the
                         // previous buffer and operator.
                         calculateAll();
                     }

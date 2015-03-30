@@ -6,6 +6,8 @@ QtObject {
 
     // Public API
 
+    readonly property var config: __csm.config
+
     readonly property string display: __csm.display
     readonly property string expression: __csm.expression
     readonly property real result: __csm.result
