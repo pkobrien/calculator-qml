@@ -4,25 +4,19 @@ import QtQuick.Controls 1.3
 import "." as App
 
 Rectangle {
-    id: calculator
-    width: 400
-    height: 400
+    id: display
 
-    property bool accepted
-    property string acceptedKey: accepted ? attemptedKey : "";
-    property string attemptedKey: ""
+    property var calculator
+    property var engine
 
-    property alias engine: engine
-
-    App.CalculatorEngine {
-        id: engine
-
-        Component.onCompleted: engine.start();
-    }
+    width: grid.childrenRect.width
+    height: grid.childrenRect.height
 
     Grid {
-        anchors.fill: parent
+        id: grid
+
         columns: 2
+        spacing: 4
 
         Label {
             text: qsTr("Attempted Key:")

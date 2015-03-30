@@ -2,7 +2,7 @@ import QtQuick 2.4
 import QtQml.StateMachine 1.0 as DSM
 
 DSM.StateMachine {
-    id: csm
+    id: sm
 
     property alias config: config
 
@@ -363,7 +363,7 @@ DSM.StateMachine {
 
                 DSM.SignalTransition {
                     signal: equalPressed
-                    guard: csm.config.equalKeyRepeatsLastOperation
+                    guard: sm.config.equalKeyRepeatsLastOperation
                     onTriggered: {
                         // Repeat the last operation using the
                         // previous buffer and operator.

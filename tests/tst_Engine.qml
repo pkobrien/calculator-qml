@@ -39,7 +39,7 @@ Item {
         id: offCase
         name: "engine-off"
 
-        property var engine: App.CalculatorEngine {  }
+        property var engine: App.Engine {  }
 
         function test_not_running() {
             wait(10);
@@ -51,7 +51,7 @@ Item {
         id: onOffCase
         name: "engine-on-off"
 
-        property var engine: App.CalculatorEngine {  }
+        property var engine: App.Engine {  }
 
         property var start: SignalSpy {
             target: onOffCase.engine
@@ -80,7 +80,7 @@ Item {
         id: basicsCase
         name: "engine-basics"
 
-        property var engine: App.CalculatorEngine {  }
+        property var engine: App.Engine {  }
 
         property var start: SignalSpy {
             target: basicsCase.engine
@@ -133,6 +133,15 @@ Item {
             util.process(engine, "2 + 2 =");
             compare(engine.display, "4.");
             compare(engine.result, 4);
+        }
+
+        function test_addition_subtraction() {
+            util.process(engine, "2 . 3 4 + 5 . 0 0 0 1 =");
+            compare(engine.display, "7.3401");
+            compare(engine.result, 7.3401);
+            util.process(engine, "- 6 . 0 0 0 1 =");
+            compare(engine.display, "1.3399999999999999");
+            compare(engine.result, 1.3399999999999999);
         }
 
         function test_repeated_equals() {

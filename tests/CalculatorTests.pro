@@ -7,4 +7,4 @@ SOURCES += tst_calculator.cpp
 OTHER_FILES +=
 
 DISTFILES += \
-    tst_CalculatorEngine.qml
+    tst_Engine.qml
