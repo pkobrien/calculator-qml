@@ -33,10 +33,6 @@ DSM.StateMachine {
         expression += key;
     }
 
-    function addTrailingDecimal(value) {
-        return value.indexOf(".") === -1 ? value + "." : value;
-    }
-
     function calculateAll() {
         var num = Number(buffer.valueOf());
         if (operator2) {
@@ -153,13 +149,23 @@ DSM.StateMachine {
 
     function updateOperator() {
         if (operand2) {
-            expression = (expression.slice(-2, -1) === operator2) ? expression.slice(0, -3) : expression
+            if (operator2) {
+                expression = (expression.slice(-2, -1) === operator2) ?
+                             expression.slice(0, -3) : expression;
+            }
             operator2 = key;
         } else {
-            expression = (expression.slice(-2, -1) === operator1) ? expression.slice(0, -3) : expression
+            if (operator1) {
+                expression = (expression.slice(-2, -1) === operator1) ?
+                             expression.slice(0, -3) : expression;
+            }
             operator1 = key;
         }
         expression += " %1 ".arg(key);
+    }
+
+    function withTrailingDecimal(value) {
+        return value.indexOf(".") === -1 ? value + "." : value;
     }
 
     /* TODO
@@ -217,7 +223,7 @@ DSM.StateMachine {
             }
 
             function show() {
-                return addTrailingDecimal(buffer);
+                return withTrailingDecimal(buffer);
             }
 
             DSM.SignalTransition {
@@ -318,7 +324,7 @@ DSM.StateMachine {
 
                 function show() {
                     var value = operator2 ? buffer : operand1.toString();
-                    return addTrailingDecimal(value);
+                    return withTrailingDecimal(value);
                 }
 
                 DSM.SignalTransition {
@@ -354,11 +360,11 @@ DSM.StateMachine {
                 function clear() {
                     buffer = "";
                     operator1 = "";
-                    expression = "";
+                    expression = result;
                 }
 
                 function show() {
-                    return addTrailingDecimal(result.toString());
+                    return withTrailingDecimal(result.toString());
                 }
 
                 DSM.SignalTransition {
@@ -368,6 +374,7 @@ DSM.StateMachine {
                         // Repeat the last operation using the
                         // previous buffer and operator.
                         calculateAll();
+                        expression = "= " + result;
                     }
                 }
                 DSM.SignalTransition {
