@@ -8,36 +8,58 @@ Rectangle {
 
     property var engine
 
-    width: main.childrenRect.width
-    height: main.childrenRect.height
+    implicitWidth: main.implicitWidth
+    implicitHeight: main.implicitHeight
 
-    Row {
+    color: "transparent"
+
+    RowLayout {
         id: main
 
-        spacing: 8
+        spacing: dp(8)
 
-        App.KeyGrid {
-            id: memoryGrid
+        GridLayout {
 
             columns: 2
-            engine: keypad.engine
-            model: ["CM", "Up", "RM", "+/-", "M-", "CE", "M+", "C"]
+            columnSpacing: dp(2)
+            rowSpacing: dp(2)
+
+            Repeater {
+                model: ["CM", "Up", "RM", "+/-", "M-", "CE", "M+", "C"]
+
+                App.Key {
+                    engine: keypad.engine
+                    text: modelData
+                    value: modelData
+                }
+            }
         }
 
-        App.KeyGrid {
-            id: digitGrid
+        GridLayout {
 
             columns: 3
-            engine: keypad.engine
-            model: ["7", "8", "9", "4", "5", "6", "1", "2", "3", "0", "0", "."]
-        }
+            columnSpacing: dp(2)
+            rowSpacing: dp(2)
 
-        App.KeyGrid {
-            id: operatorGrid
+            Repeater {
+                model: ["7", "8", "9", "4", "5", "6", "1", "2", "3", "0", "."]
 
-            columns: 3
-            engine: keypad.engine
-            model: ["7", "8", "9", "4", "5", "6", "1", "2", "3", "0", "0", "."]
+                App.Key {
+                    engine: keypad.engine
+                    text: modelData
+                    value: modelData
+
+                    Binding on Layout.columnSpan {
+                        when: modelData == "0"
+                        value: 2
+                    }
+
+                    Binding on Layout.fillWidth {
+                        when: modelData == "0"
+                        value: true
+                    }
+                }
+            }
         }
     }
 }

@@ -6,14 +6,14 @@ import "." as App
 Rectangle {
     id: calculator
 
-    width: main.childrenRect.width
-    height: main.childrenRect.height
+    property real maximumWidth: main.Layout.maximumWidth + main.anchors.margins * 2
+    property real maximumHeight: main.Layout.maximumHeight + main.anchors.margins * 2
 
-    property bool accepted
-    property string acceptedKey: accepted ? attemptedKey : "";
-    property string attemptedKey: ""
+    property real minimumWidth: main.Layout.minimumWidth + main.anchors.margins * 2
+    property real minimumHeight: main.Layout.minimumHeight + main.anchors.margins * 2
 
-    property alias engine: engine
+    anchors.fill: parent
+    color: "transparent"
 
     App.Engine {
         id: engine
@@ -21,14 +21,16 @@ Rectangle {
         Component.onCompleted: engine.start();
     }
 
-    Column {
+    ColumnLayout {
         id: main
 
+        anchors.fill: parent
+        anchors.margins: dp(8)
         spacing: dp(8)
 
         App.Display {
-            calculator: calculator
             engine: engine
+            implicitWidth: main.implicitWidth
         }
 
         App.Keypad {
@@ -41,9 +43,7 @@ Rectangle {
     Keys.onPressed: {
         App.Actions.keyPressed(event, calculator);
         if (!event.accepted) {
-            attemptedKey = event.text;
-            accepted = engine.process(attemptedKey);
-            event.accepted = accepted;
+            event.accepted = engine.process(event.text);
         }
     }
 }

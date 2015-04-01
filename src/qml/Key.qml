@@ -1,11 +1,13 @@
 import QtQuick 2.4
-import QtQuick.Controls 1.3
+import "." as App
 
-Button {
+App.KeyForm {
     id: key
 
-    width: dp(48)
-    height: dp(48)
+    implicitWidth: dp(48)
+    implicitHeight: dp(48)
+
+    fontSize: dp(20)
 
     property var engine
     property string value

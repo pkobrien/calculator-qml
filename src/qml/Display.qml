@@ -6,51 +6,36 @@ import "." as App
 Rectangle {
     id: display
 
-    property var calculator
     property var engine
 
-    width: grid.childrenRect.width
-    height: grid.childrenRect.height
+    implicitHeight: main.implicitHeight
 
-    Grid {
-        id: grid
+    ColumnLayout {
+        id: main
 
-        columns: 2
-        spacing: 4
-
-        Label {
-            text: qsTr("Attempted Key:")
-        }
-        Label {
-            text: calculator.attemptedKey ? calculator.attemptedKey : "..."
-        }
+        anchors.left: parent.left
+        anchors.leftMargin: dp(4)
+        anchors.right: parent.right
+        anchors.rightMargin: dp(4)
+        spacing: dp(4)
 
         Label {
-            text: qsTr("Accepted Key:")
-        }
-        Label {
-            text: calculator.acceptedKey ? calculator.acceptedKey : "..."
+            text: engine.display
+            font.pixelSize: dp(28)
+            horizontalAlignment: Text.AlignRight
+            Layout.fillWidth: true
         }
 
         Label {
-            text: qsTr("Display:")
-        }
-        Label {
-            text: engine.display ? engine.display : "..."
-        }
-
-        Label {
-            text: qsTr("Expression:")
-        }
-        Label {
-            text: engine.expression ? engine.expression : "..."
+            text: engine.expression
+            font.pixelSize: dp(12)
+            Layout.fillWidth: true
         }
 
-        Label {
-            text: qsTr("Result:")
-        }
         Label {
             text: engine.result
+            font.pixelSize: dp(18)
+            Layout.fillWidth: true
         }
     }
 }

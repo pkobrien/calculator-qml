@@ -9,21 +9,26 @@ Candy.ApplicationWindow {
     title: qsTr("Calculator")
     visible: true
 
-    width: calculator.width + dp(16)
-    height: calculator.height + dp(16)
+    contentItem.implicitWidth: calculator.implicitWidth
+    contentItem.implicitHeight: calculator.implicitHeight
+
+    contentItem.maximumWidth: calculator.maximumWidth
+    contentItem.maximumHeight: calculator.maximumHeight
+
+    contentItem.minimumWidth: calculator.minimumWidth
+    contentItem.minimumHeight: calculator.minimumHeight
 
     Component.onCompleted: {
-        Candy.Units.scaleFactor = 2.0;
+        Candy.Units.scaleFactor = 3.0;
         App.Active.appWindow = appWindow;
         App.Active.calculator = calculator;
     }
 
-//    menuBar: App.MenuBar { }
+    menuBar: App.MenuBar { }
 
 //    toolBar: App.ToolBar { }
 
     App.Calculator {
         id: calculator
-        anchors.centerIn: parent
     }
 }
