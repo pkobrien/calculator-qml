@@ -17,6 +17,10 @@ DSM.StateMachine {
     property string operator2
     property real result
 
+    readonly property int significantDigits: 15
+    readonly property var trailingZerosRegExp: /0+$/
+    readonly property var trailingPointRegExp: /\.$/
+
     signal addsubPressed()
     signal clearPressed()
     signal digitPressed()
@@ -30,11 +34,12 @@ DSM.StateMachine {
         buffer = (!buffer && key === ".") ? "0" : buffer;
         buffer = (!key) ? "0" : buffer;
         buffer += key;
-        expression += key;
+        expression = (expression.slice(-2) === " 0") ? expression.slice(0, -1) : expression;
+        expression += (buffer === "0.") ? "0." : key;
     }
 
     function calculateAll() {
-        var num = Number(buffer.valueOf());
+        var num = Number(buffer);
         if (operator2) {
             switch (operator2) {
                 case "*":
@@ -70,7 +75,7 @@ DSM.StateMachine {
     }
 
     function calculateLast() {
-        var num = Number(buffer.valueOf());
+        var num = Number(buffer);
         if (operator2) {
             switch (operator2) {
                 case "*":
@@ -101,7 +106,7 @@ DSM.StateMachine {
     }
 
     function process(input) {
-        key = input;
+        key = input.toLowerCase();
         var accepted = true;
         switch (key) {
             default:
@@ -145,6 +150,15 @@ DSM.StateMachine {
         operator1 = "";
         operator2 = "";
         result = 0.0;
+    }
+
+    function stringify(value) {
+        var result = value.toFixed(significantDigits);
+        if (result.indexOf(".") !== -1) {
+            result = result.replace(trailingZerosRegExp, "");
+            result = result.replace(trailingPointRegExp, "");
+        }
+        return result;
     }
 
     function updateOperator() {
@@ -323,7 +337,7 @@ DSM.StateMachine {
                 }
 
                 function show() {
-                    var value = operator2 ? buffer : operand1.toString();
+                    var value = operator2 ? buffer : stringify(operand1);
                     return withTrailingDecimal(value);
                 }
 
@@ -339,7 +353,7 @@ DSM.StateMachine {
                     signal: equalPressed
                     targetState: resultState
                     onTriggered: {
-                        buffer = operand1.toString();
+                        buffer = stringify(operand1);
                         operand2 = 0.00;
                         operator2 = "";
                     }
@@ -352,7 +366,7 @@ DSM.StateMachine {
                 onEntered: {
                     calculateAll();
                     display = Qt.binding(show);
-                    expression += " = " + result;
+                    expression += " = " + stringify(result);
                 }
 
                 onExited: clear();
@@ -360,11 +374,11 @@ DSM.StateMachine {
                 function clear() {
                     buffer = "";
                     operator1 = "";
-                    expression = result;
+                    expression = "";
                 }
 
                 function show() {
-                    return withTrailingDecimal(result.toString());
+                    return withTrailingDecimal(stringify(result));
                 }
 
                 DSM.SignalTransition {
@@ -374,16 +388,18 @@ DSM.StateMachine {
                         // Repeat the last operation using the
                         // previous buffer and operator.
                         calculateAll();
-                        expression = "= " + result;
+                        expression = "= " + stringify(result);
                     }
                 }
                 DSM.SignalTransition {
                     signal: addsubPressed
                     targetState: operatorState
+                    onTriggered: expression = stringify(result);
                 }
                 DSM.SignalTransition {
                     signal: muldivPressed
                     targetState: operatorState
+                    onTriggered: expression = stringify(result);
                 }
             }
         }
