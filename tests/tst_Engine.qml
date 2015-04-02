@@ -104,6 +104,15 @@ Item {
             }
         }
 
+        function test_max_significant_digits() {
+            util.process(engine, "0 . 0 0 0 2 + 6 4 =");
+            // Max is 13 because at 14 significant digits
+            // this evaluates to: 64.00020000000001
+            compare(engine.display, "64.0002");
+            compare(engine.result, 64.0002);
+            util.process(engine, "c");
+        }
+
         function test_basic_accumulate() {
             var data = [ // key, display, expression, result // index
                 ["1", "1.", "1", 0], // 0

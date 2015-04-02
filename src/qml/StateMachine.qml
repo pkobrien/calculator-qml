@@ -17,7 +17,7 @@ DSM.StateMachine {
     property string operator2
     property real result
 
-    readonly property int significantDigits: 15
+    readonly property int significantDigits: 13
     readonly property var trailingZerosRegExp: /0+$/
     readonly property var trailingPointRegExp: /\.$/
 
