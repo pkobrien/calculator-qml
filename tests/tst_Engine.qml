@@ -197,7 +197,17 @@ Item {
             util.calculate_and_compare(engine, data);
         }
 
-        function test_basic_functions() {
+        function test_function_sqr() {
+            var data = [ // keys, expression, display, result // index
+                ["3", "3", "3.", 0], // 0
+                ["sqr", "sqr(3)", "9.", 3 * 3], // 1
+                ["sqr", "sqr(sqr(3))", "81.", 9 * 9], // 2
+                ["sqr", "sqr(sqr(sqr(3)))", "6561.", 81 * 81], // 3
+            ];
+            util.calculate_and_compare(engine, data);
+        }
+
+        function test_function_sqrt() {
             var data = [ // keys, expression, display, result // index
                 ["8 1", "81", "81.", 0], // 0
                 ["sqrt", "sqrt(81)", "9.", Math.sqrt(81)], // 1

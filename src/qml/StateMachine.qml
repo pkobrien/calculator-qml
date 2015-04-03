@@ -41,6 +41,26 @@ DSM.StateMachine {
         expressionBuilder.push(last);
     }
 
+    function applyMathFunction() {
+        expressionBuilder.push("%1(%2)".arg(key).arg(expressionBuilder.pop()));
+        var num = Number(operandBuffer);
+        var mathFunction
+        switch (key) {
+            default:
+                mathFunction = Math[key];
+                break;
+            case "sqr":
+                mathFunction = function() { return num * num };
+                break;
+        }
+        var newValue = mathFunction(num);
+        operandBuffer = stringify(newValue);
+        if (!operator1) {
+            operand1 = newValue;
+            calculationResult = newValue;
+        }
+    }
+
     function calculateAll() {
         var num = Number(operandBuffer);
         if (operator2) {
@@ -76,17 +96,6 @@ DSM.StateMachine {
             operand1 = num;
         }
         calculationResult = operand1;
-    }
-
-    function calculateFunction() {
-        var num = Number(operandBuffer);
-        var mathFunction = Math[key];
-        var newValue = mathFunction(num);
-        operandBuffer = stringify(newValue);
-        if (!operator1) {
-            operand1 = newValue;
-            calculationResult = newValue;
-        }
     }
 
     function calculateLast() {
@@ -150,7 +159,8 @@ DSM.StateMachine {
             case "*": case "/":
                 muldivPressed();
                 break;
-            case "sqrt":
+            case "acos": case "asin": case "atan": case "cos":
+            case "exp": case "log": case "sqr": case "sqrt":
                 functionPressed();
                 break;
         }
@@ -312,7 +322,7 @@ DSM.StateMachine {
             DSM.SignalTransition {
                 signal: functionPressed
                 guard: operandBuffer
-                targetState: functionState
+                onTriggered: applyMathFunction();
             }
 
             DSM.State {
@@ -382,47 +392,6 @@ DSM.StateMachine {
             }
 
             DSM.State {
-                id: functionState
-
-                onEntered: {
-                    display = Qt.binding(show);
-                    update();
-                }
-
-                function show() {
-                    return withTrailingDecimal(operandBuffer);
-                }
-
-                function update() {
-                    var exp = "%1(%2)".arg(key).arg(expressionBuilder.pop());
-                    calculateFunction();
-                    expressionBuilder.push(exp);
-                }
-
-                DSM.SignalTransition {
-                    signal: functionPressed
-                    onTriggered: {
-                        functionState.update();
-                    }
-                }
-                DSM.SignalTransition {
-                    signal: addsubPressed
-                    targetState: operatorState
-                    onTriggered: calculateAll();
-                }
-                DSM.SignalTransition {
-                    signal: muldivPressed
-                    targetState: operatorState
-                    onTriggered: calculateLast();
-                }
-                DSM.SignalTransition {
-                    signal: equalPressed
-                    guard: operator1
-                    targetState: resultState
-                }
-            }
-
-            DSM.State {
                 id: operatorState
 
                 onEntered: {
@@ -457,9 +426,6 @@ DSM.StateMachine {
                         operand2 = 0.00;
                         operator2 = "";
                     }
-                }
-                DSM.SignalTransition {
-                    signal: functionPressed
                 }
             }
 
@@ -515,10 +481,11 @@ DSM.StateMachine {
                 }
                 DSM.SignalTransition {
                     signal: functionPressed
-                    targetState: functionState
                     onTriggered: {
+                        resultState.clear();
                         operandBuffer = stringify(calculationResult);
                         expressionBuilder.push(calculationResult);
+                        applyMathFunction();
                     }
                 }
             }

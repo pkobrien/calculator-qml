@@ -13,50 +13,100 @@ Rectangle {
 
     color: "transparent"
 
-    RowLayout {
+    ColumnLayout {
         id: main
 
         spacing: dp(8)
 
         GridLayout {
 
-            columns: 2
+            columns: 4
             columnSpacing: dp(2)
             rowSpacing: dp(2)
 
             Repeater {
-                model: ["CM", "Up", "RM", "+/-", "M-", "CE", "M+", "C"]
+                model: ["Sqr", "Sqrt", "Acos", "Asin", "Atan", "Cos", "Exp", "Log"]
 
                 App.Key {
                     engine: keypad.engine
                     text: modelData
                     value: modelData
+                    Layout.fillWidth: true
                 }
             }
         }
 
-        GridLayout {
+        RowLayout {
 
-            columns: 3
-            columnSpacing: dp(2)
-            rowSpacing: dp(2)
+            spacing: dp(8)
 
-            Repeater {
-                model: ["7", "8", "9", "4", "5", "6", "1", "2", "3", "0", "."]
+            GridLayout {
 
-                App.Key {
-                    engine: keypad.engine
-                    text: modelData
-                    value: modelData
+                columns: 2
+                columnSpacing: dp(2)
+                rowSpacing: dp(2)
 
-                    Binding on Layout.columnSpan {
-                        when: modelData == "0"
-                        value: 2
+                Repeater {
+                    model: ["CM", "Up", "RM", "+/-", "M-", "CE", "M+", "C"]
+
+                    App.Key {
+                        engine: keypad.engine
+                        text: modelData
+                        value: modelData
                     }
+                }
+            }
 
-                    Binding on Layout.fillWidth {
-                        when: modelData == "0"
-                        value: true
+            GridLayout {
+
+                columns: 3
+                columnSpacing: dp(2)
+                rowSpacing: dp(2)
+
+                Repeater {
+                    model: ["7", "8", "9", "4", "5", "6", "1", "2", "3", "0", "."]
+
+                    App.Key {
+                        engine: keypad.engine
+                        text: modelData
+                        value: modelData
+
+                        Binding on Layout.columnSpan {
+                            when: modelData == "0"
+                            value: 2
+                        }
+
+                        Binding on Layout.fillWidth {
+                            when: modelData == "0"
+                            value: true
+                        }
+                    }
+                }
+            }
+
+            GridLayout {
+
+                columns: 2
+                columnSpacing: dp(2)
+                rowSpacing: dp(2)
+
+                Repeater {
+                    model: ["-", "%", "+", "*", "/", "="]
+
+                    App.Key {
+                        engine: keypad.engine
+                        text: modelData
+                        value: modelData
+
+                        Binding on Layout.rowSpan {
+                            when: modelData == "+"
+                            value: 3
+                        }
+
+                        Binding on Layout.fillHeight {
+                            when: modelData == "+"
+                            value: true
+                        }
                     }
                 }
             }
