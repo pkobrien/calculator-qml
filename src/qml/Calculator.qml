@@ -12,7 +12,9 @@ Rectangle {
     property real minimumWidth: main.Layout.minimumWidth + main.anchors.margins * 2
     property real minimumHeight: main.Layout.minimumHeight + main.anchors.margins * 2
 
-    anchors.fill: parent
+    implicitWidth: main.implicitWidth + main.anchors.margins * 2
+    implicitHeight: main.implicitHeight + main.anchors.margins * 2
+
     color: "transparent"
 
     App.Engine {
@@ -30,10 +32,11 @@ Rectangle {
 
         App.Display {
             engine: engine
-            implicitWidth: main.implicitWidth
+            implicitWidth: keypad.implicitWidth
         }
 
         App.Keypad {
+            id: keypad
             engine: engine
         }
     }
