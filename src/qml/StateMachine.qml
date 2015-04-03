@@ -466,14 +466,18 @@ DSM.StateMachine {
             DSM.State {
                 id: resultState
 
+                property string lastOperator
+
                 onEntered: {
                     display = Qt.binding(show);
+                    lastOperator = operator1;
                     update();
                 }
 
                 onExited: clear();
 
                 function clear() {
+                    lastOperator = "";
                     operandBuffer = "";
                     operator1 = "";
                     expressionBuilder.clear();
@@ -495,7 +499,7 @@ DSM.StateMachine {
                     onTriggered: {
                         // Repeat the last operation using the
                         // previous buffer and operator.
-                        expressionBuilder.clear();
+                        operator1 = resultState.lastOperator;
                         resultState.update();
                     }
                 }

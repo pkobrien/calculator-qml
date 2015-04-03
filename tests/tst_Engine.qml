@@ -10,16 +10,16 @@ Item {
         name: "shared-functions"
 
         function calculate_and_compare(engine, data) {
-            // data is an array of arrays with [key, display, expression, result].
+            // data is an array of arrays with [keys, expression, display, result].
             data.forEach(function(element, index) {
-                var key = element[0];
-                var display = element[1];
-                var expression = element[2];
+                var keys = element[0];
+                var expression = element[1];
+                var display = element[2];
                 var result = element[3];
                 var msg = "data index " + index + "::";
-                engine.process(key);
-                compare(engine.display, display, msg + "wrong engine.display");
+                process(engine, keys);
                 compare(engine.expression, expression, msg + "wrong engine.expression");
+                compare(engine.display, display, msg + "wrong engine.display");
                 compare(engine.result, result, msg + "wrong engine.result");
             });
         }
@@ -114,24 +114,25 @@ Item {
         }
 
         function test_basic_accumulate() {
-            var data = [ // key, display, expression, result // index
-                ["1", "1.", "1", 0], // 0
-                ["+", "1.", "1 +", 1], // 1
-                ["2", "2.", "1 + 2", 1], // 2
-                ["=", "3.", "1 + 2 = 3", 3], // 3
-                ["*", "3.", "3 *", 3], // 4
-                ["4", "4.", "3 * 4", 3], // 5
-                ["=", "12.", "3 * 4 = 12", 12], // 6
+            var data = [ // keys, expression, display, result // index
+                ["1", "1", "1.", 0], // 0
+                ["+", "1 +", "1.", 1], // 1
+                ["2", "1 + 2", "2.", 1], // 2
+                ["=", "1 + 2 = 3", "3.", 3], // 3
+                ["*", "3 *", "3.", 3], // 4
+                ["4", "3 * 4", "4.", 3], // 5
+                ["=", "3 * 4 = 12", "12.", 12], // 6
+                ["c 1 + 2 + 3 + 4 + 5 . 0 0 0 1", "1 + 2 + 3 + 4 + 5.0001", "5.0001", 10], // 7
             ];
             util.calculate_and_compare(engine, data);
         }
 
         function test_accumulate() {
-            var data = [ // key, display, expression, result // index
-                ["0", "0.", "", 0], // 0
-                ["1", "1.", "1", 0], // 1
-                ["2", "12.", "12", 0], // 2
-                ["3", "123.", "123", 0], // 3
+            var data = [ // keys, expression, display, result // index
+                ["0", "", "0.", 0], // 0
+                ["1", "1", "1.", 0], // 1
+                ["2", "12", "12.", 0], // 2
+                ["3", "123", "123.", 0], // 3
                 [".", "123.", "123.", 0], // 4
                 ["4", "123.4", "123.4", 0], // 5
                 ["5", "123.45", "123.45", 0], // 6
@@ -140,28 +141,28 @@ Item {
                 ["7", "123.45067", "123.45067", 0], // 9
                 ["7", "123.450677", "123.450677", 0], // 10
                 ["7", "123.4506777", "123.4506777", 0], // 11
-                ["+", "123.4506777", "123.4506777 +", 123.4506777], // 12
-                ["-", "123.4506777", "123.4506777 -", 123.4506777], // 13
-                ["*", "123.4506777", "123.4506777 *", 123.4506777], // 14
-                ["8", "8.", "123.4506777 * 8", 123.4506777], // 15
-                ["=", "987.6054216", "123.4506777 * 8 = 987.6054216", 987.6054216], // 16
-                ["0", "0.", "0", 987.6054216], // 17
-                ["=", "0.", "0", 987.6054216], // 18
-                ["C", "0.", "", 0], // 19
-                ["1", "1.", "1", 0], // 20
-                ["+", "1.", "1 +", 1], // 21
-                ["2", "2.", "1 + 2", 1], // 22
-                ["=", "3.", "1 + 2 = 3", 3], // 23
-                ["4", "4.", "4", 3], // 24
-                ["5", "45.", "45", 3], // 25
-                ["C", "0.", "", 0], // 26
+                ["+", "123.4506777 +", "123.4506777", 123.4506777], // 12
+                ["-", "123.4506777 -", "123.4506777", 123.4506777], // 13
+                ["*", "123.4506777 *", "123.4506777", 123.4506777], // 14
+                ["8", "123.4506777 * 8", "8.", 123.4506777], // 15
+                ["=", "123.4506777 * 8 = 987.6054216", "987.6054216", 987.6054216], // 16
+                ["0", "0", "0.", 987.6054216], // 17
+                ["=", "0", "0.", 987.6054216], // 18
+                ["C", "", "0.", 0], // 19
+                ["1", "1", "1.", 0], // 20
+                ["+", "1 +", "1.", 1], // 21
+                ["2", "1 + 2", "2.", 1], // 22
+                ["=", "1 + 2 = 3", "3.", 3], // 23
+                ["4", "4", "4.", 3], // 24
+                ["5", "45", "45.", 3], // 25
+                ["C", "", "0.", 0], // 26
                 [".", "0.", "0.", 0], // 27
                 ["1", "0.1", "0.1", 0], // 28
-                ["+", "0.1", "0.1 +", 0.1], // 29
-                ["0", "0.", "0.1 + 0", 0.1], // 30
-                [".", "0.", "0.1 + 0.", 0.1], // 31
-                ["2", "0.2", "0.1 + 0.2", 0.1], // 32
-                ["=", "0.3", "0.1 + 0.2 = 0.3", 0.3], // 33
+                ["+", "0.1 +", "0.1", 0.1], // 29
+                ["0", "0.1 + 0", "0.", 0.1], // 30
+                [".", "0.1 + 0.", "0.", 0.1], // 31
+                ["2", "0.1 + 0.2", "0.2", 0.1], // 32
+                ["=", "0.1 + 0.2 = 0.3", "0.3", 0.3], // 33
             ];
             util.calculate_and_compare(engine, data);
         }
@@ -173,30 +174,35 @@ Item {
         }
 
         function test_addition_subtraction() {
-            util.process(engine, "2 . 3 4 + 5 . 0 0 0 1 =");
-            compare(engine.display, "7.3401");
-            compare(engine.result, 7.3401);
-            util.process(engine, "- 6 . 0 0 0 1 =");
-            compare(engine.display, "1.34");
-            compare(engine.result, 1.34);
+            var data = [ // keys, expression, display, result // index
+                ["2 . 3 4 + 5 . 0 0 0 1 =", "2.34 + 5.0001 = 7.3401", "7.3401", 7.3401], // 0
+                ["- 6 . 0 0 0 1 =", "7.3401 - 6.0001 = 1.34", "1.34", 1.34], // 1
+            ];
+            util.calculate_and_compare(engine, data);
         }
 
-        function test_repeated_equals() {
-            var keys = "2 + 3 * 4 = = =";
-            util.process(engine, keys);
-            compare(engine.display, "14.");
-            compare(engine.result, 14);
+        function test_repeated_equals_with_equalKeyRepeatsLastOperation_false() {
+            var data = [ // keys, expression, display, result // index
+                ["2 + 3 * 4 = = =", "2 + 3 * 4 = 14", "14.", 14], // 0
+            ];
+            verify(engine.config.equalKeyRepeatsLastOperation === false);
+            util.calculate_and_compare(engine, data);
+        }
+
+        function test_repeated_equals_with_equalKeyRepeatsLastOperation_true() {
+            var data = [ // keys, expression, display, result // index
+                ["2 + 3 * 4 = = =", "2 + 3 * 4 = 14 = 26 = 38", "38.", 38], // 0
+            ];
             engine.config.equalKeyRepeatsLastOperation = true;
-            util.process(engine, "c");
-            util.process(engine, keys);
-            compare(engine.display, "38.");
-            compare(engine.result, 38);
+            util.calculate_and_compare(engine, data);
         }
 
         function test_basic_functions() {
-            var data = [ // key, display, expression, result // index
-                ["9", "9.", "9", 0], // 0
-                ["sqrt", "3.", "sqrt(9)", Math.sqrt(9)], // 1
+            var data = [ // keys, expression, display, result // index
+                ["8 1", "81", "81.", 0], // 0
+                ["sqrt", "sqrt(81)", "9.", Math.sqrt(81)], // 1
+                ["sqrt", "sqrt(sqrt(81))", "3.", Math.sqrt(9)], // 2
+                ["sqrt", "sqrt(sqrt(sqrt(81)))", "1.7320508075689", Math.sqrt(3)], // 3
             ];
             util.calculate_and_compare(engine, data);
         }
