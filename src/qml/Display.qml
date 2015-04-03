@@ -10,6 +10,10 @@ Rectangle {
 
     implicitHeight: main.implicitHeight
 
+    border.color: "Dark Gray"
+    border.width: dp(1)
+    radius: dp(2)
+
     ColumnLayout {
         id: main
 
@@ -21,7 +25,7 @@ Rectangle {
 
         Label {
             text: engine.display
-            font.pixelSize: dp(28)
+            font.pixelSize: dp(32)
             horizontalAlignment: Text.AlignRight
             Layout.fillWidth: true
         }
@@ -34,7 +38,7 @@ Rectangle {
 
         Label {
             text: engine.result
-            font.pixelSize: dp(18)
+            font.pixelSize: dp(16)
             Layout.fillWidth: true
         }
     }

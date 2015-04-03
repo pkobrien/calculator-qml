@@ -107,7 +107,7 @@ Item {
         function test_max_significant_digits() {
             util.process(engine, "0 . 0 0 0 2 + 6 4 =");
             // Max is 13 because at 14 significant digits
-            // this evaluates to: 64.00020000000001
+            // this example evaluates to: 64.00020000000001
             compare(engine.display, "64.0002");
             compare(engine.result, 64.0002);
             util.process(engine, "c");
@@ -192,5 +192,14 @@ Item {
             compare(engine.display, "38.");
             compare(engine.result, 38);
         }
+
+        function test_basic_functions() {
+            var data = [ // key, display, expression, result // index
+                ["9", "9.", "9", 0], // 0
+                ["sqrt", "3.", "sqrt(9)", Math.sqrt(9)], // 1
+            ];
+            util.calculate_and_compare(engine, data);
+        }
+
     }
 }

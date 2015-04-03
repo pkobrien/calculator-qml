@@ -6,16 +6,16 @@ DSM.StateMachine {
 
     property alias config: config
 
-    property string buffer
+    property real calculationResult
     property string display
+    property string expression: expressionBuilder.text
     property string errorMessage
-    property string expression: expressionBuffer.text
     property string key
+    property string operandBuffer
     property real operand1
     property real operand2
     property string operator1
     property string operator2
-    property real result
 
     readonly property int significantDigits: 13
     readonly property var trailingZerosRegExp: /0+$/
@@ -25,23 +25,24 @@ DSM.StateMachine {
     signal clearPressed()
     signal digitPressed()
     signal equalPressed()
+    signal functionPressed()
     signal muldivPressed()
     signal pointPressed()
     signal zeroPressed()
 
     function accumulate() {
-        buffer = (buffer === "0") ? "" : buffer;
-        buffer = (!buffer && key === ".") ? "0" : buffer;
-        buffer = (!key) ? "0" : buffer;
-        buffer += key;
-        var last = expressionBuffer.pop();
+        operandBuffer = (operandBuffer === "0") ? "" : operandBuffer;
+        operandBuffer = (!operandBuffer && key === ".") ? "0" : operandBuffer;
+        operandBuffer = (!key) ? "0" : operandBuffer;
+        operandBuffer += key;
+        var last = expressionBuilder.pop();
         last = (last === "0") ? "" : last;
-        last += (buffer === "0.") ? "0." : key;
-        expressionBuffer.push(last);
+        last += (operandBuffer === "0.") ? "0." : key;
+        expressionBuilder.push(last);
     }
 
     function calculateAll() {
-        var num = Number(buffer);
+        var num = Number(operandBuffer);
         if (operator2) {
             switch (operator2) {
                 case "*":
@@ -51,7 +52,7 @@ DSM.StateMachine {
                     num /= operand2;
                     break;
             }
-            buffer = stringify(num);
+            operandBuffer = stringify(num);
             operand2 = 0.00;
             operator2 = "";
         }
@@ -70,14 +71,26 @@ DSM.StateMachine {
                     operand1 /= num;
                     break;
             }
+            operator1 = "";
         } else {
             operand1 = num;
         }
-        result = operand1;
+        calculationResult = operand1;
+    }
+
+    function calculateFunction() {
+        var num = Number(operandBuffer);
+        var mathFunction = Math[key];
+        var newValue = mathFunction(num);
+        operandBuffer = stringify(newValue);
+        if (!operator1) {
+            operand1 = newValue;
+            calculationResult = newValue;
+        }
     }
 
     function calculateLast() {
-        var num = Number(buffer);
+        var num = Number(operandBuffer);
         if (operator2) {
             switch (operator2) {
                 case "*":
@@ -137,48 +150,52 @@ DSM.StateMachine {
             case "*": case "/":
                 muldivPressed();
                 break;
+            case "sqrt":
+                functionPressed();
+                break;
         }
         return accepted;
     }
 
     function reset() {
-        buffer = "";
+        calculationResult = 0.0;
         display = "";
         errorMessage = "";
-        expressionBuffer.clear();
+        expressionBuilder.clear();
         key = "";
+        operandBuffer = "";
         operand1 = 0.0;
         operand2 = 0.0;
         operator1 = "";
         operator2 = "";
-        result = 0.0;
     }
 
     function stringify(value) {
-        var result = value;
+        var newValue = value;
         if (typeof value === "number") {
-          result = value.toFixed(significantDigits);
-            if (result.indexOf(".") !== -1) {
-                result = result.replace(trailingZerosRegExp, "");
-                result = result.replace(trailingPointRegExp, "");
+          newValue = value.toFixed(significantDigits);
+            if (newValue.indexOf(".") !== -1) {
+                newValue = newValue.replace(trailingZerosRegExp, "");
+                newValue = newValue.replace(trailingPointRegExp, "");
             }
         }
-        return result;
+        return newValue;
     }
 
     function updateOperator() {
         if (operand2) {
             if (operator2) {
-                expressionBuffer.pop();
+                expressionBuilder.pop();
             }
             operator2 = key;
+            expressionBuilder.push(key);
         } else {
             if (operator1) {
-                expressionBuffer.pop();
+                expressionBuilder.pop();
             }
             operator1 = key;
+            expressionBuilder.push(key);
         }
-        expressionBuffer.push(key);
     }
 
     function withTrailingDecimal(value) {
@@ -210,7 +227,7 @@ DSM.StateMachine {
     }
 
     QtObject {
-        id: expressionBuffer
+        id: expressionBuilder
 
         property string text: ""
 
@@ -218,17 +235,21 @@ DSM.StateMachine {
 
         function clear() {
             __buffer.length = 0;
-            text = "";
+            _updateText();
         }
 
         function pop() {
             var value = __buffer.pop();
-            text = __buffer.join(" ");
+            _updateText();
             return value;
         }
 
         function push(value) {
             __buffer.push(stringify(value));
+            _updateText();
+        }
+
+        function _updateText() {
             text = __buffer.join(" ");
         }
     }
@@ -249,7 +270,11 @@ DSM.StateMachine {
 
         DSM.State {
             id: errorState
-            onEntered: display = Qt.binding(show);
+            onEntered: {
+                display = Qt.binding(show);
+                expressionBuilder.clear();
+                expressionBuilder.push("Press Clear to continue...");
+            }
 
             function show() {
                 return errorMessage;
@@ -262,11 +287,11 @@ DSM.StateMachine {
 
             onEntered: {
                 display = Qt.binding(show);
-                expressionBuffer.push("");
+                expressionBuilder.push("");
             }
 
             function show() {
-                return withTrailingDecimal(buffer);
+                return withTrailingDecimal(operandBuffer);
             }
 
             DSM.SignalTransition {
@@ -283,6 +308,11 @@ DSM.StateMachine {
                 signal: equalPressed
                 guard: operator1
                 targetState: resultState
+            }
+            DSM.SignalTransition {
+                signal: functionPressed
+                guard: operandBuffer
+                targetState: functionState
             }
 
             DSM.State {
@@ -352,6 +382,47 @@ DSM.StateMachine {
             }
 
             DSM.State {
+                id: functionState
+
+                onEntered: {
+                    display = Qt.binding(show);
+                    update();
+                }
+
+                function show() {
+                    return withTrailingDecimal(operandBuffer);
+                }
+
+                function update() {
+                    var exp = "%1(%2)".arg(key).arg(expressionBuilder.pop());
+                    calculateFunction();
+                    expressionBuilder.push(exp);
+                }
+
+                DSM.SignalTransition {
+                    signal: functionPressed
+                    onTriggered: {
+                        functionState.update();
+                    }
+                }
+                DSM.SignalTransition {
+                    signal: addsubPressed
+                    targetState: operatorState
+                    onTriggered: calculateAll();
+                }
+                DSM.SignalTransition {
+                    signal: muldivPressed
+                    targetState: operatorState
+                    onTriggered: calculateLast();
+                }
+                DSM.SignalTransition {
+                    signal: equalPressed
+                    guard: operator1
+                    targetState: resultState
+                }
+            }
+
+            DSM.State {
                 id: operatorState
 
                 onEntered: {
@@ -362,11 +433,11 @@ DSM.StateMachine {
                 onExited: clear();
 
                 function clear() {
-                    buffer = "";
+                    operandBuffer = "";
                 }
 
                 function show() {
-                    var value = operator2 ? buffer : operand1;
+                    var value = operator2 ? operandBuffer : operand1;
                     return withTrailingDecimal(value);
                 }
 
@@ -382,10 +453,13 @@ DSM.StateMachine {
                     signal: equalPressed
                     targetState: resultState
                     onTriggered: {
-                        buffer = stringify(operand1);
+                        operandBuffer = stringify(operand1);
                         operand2 = 0.00;
                         operator2 = "";
                     }
+                }
+                DSM.SignalTransition {
+                    signal: functionPressed
                 }
             }
 
@@ -400,19 +474,19 @@ DSM.StateMachine {
                 onExited: clear();
 
                 function clear() {
-                    buffer = "";
+                    operandBuffer = "";
                     operator1 = "";
-                    expressionBuffer.clear();
+                    expressionBuilder.clear();
                 }
 
                 function show() {
-                    return withTrailingDecimal(result);
+                    return withTrailingDecimal(calculationResult);
                 }
 
                 function update() {
                     calculateAll();
-                    expressionBuffer.push("=");
-                    expressionBuffer.push(result);
+                    expressionBuilder.push("=");
+                    expressionBuilder.push(calculationResult);
                 }
 
                 DSM.SignalTransition {
@@ -421,19 +495,27 @@ DSM.StateMachine {
                     onTriggered: {
                         // Repeat the last operation using the
                         // previous buffer and operator.
-                        expressionBuffer.clear();
+                        expressionBuilder.clear();
                         resultState.update();
                     }
                 }
                 DSM.SignalTransition {
                     signal: addsubPressed
                     targetState: operatorState
-                    onTriggered: expressionBuffer.push(result);
+                    onTriggered: expressionBuilder.push(calculationResult);
                 }
                 DSM.SignalTransition {
                     signal: muldivPressed
                     targetState: operatorState
-                    onTriggered: expressionBuffer.push(result);
+                    onTriggered: expressionBuilder.push(calculationResult);
+                }
+                DSM.SignalTransition {
+                    signal: functionPressed
+                    targetState: functionState
+                    onTriggered: {
+                        operandBuffer = stringify(calculationResult);
+                        expressionBuilder.push(calculationResult);
+                    }
                 }
             }
         }
