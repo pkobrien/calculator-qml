@@ -31,14 +31,9 @@ DSM.StateMachine {
     signal zeroPressed()
 
     function accumulate() {
-        operandBuffer = (operandBuffer === "0") ? "" : operandBuffer;
-        operandBuffer = (!operandBuffer && key === ".") ? "0" : operandBuffer;
-        operandBuffer = (!key) ? "0" : operandBuffer;
         operandBuffer += key;
-        var last = expressionBuilder.pop();
-        last = (last === "0") ? "" : last;
-        last += (operandBuffer === "0.") ? "0." : key;
-        expressionBuilder.push(last);
+        expressionBuilder.pop();
+        expressionBuilder.push(operandBuffer === "0." ? "0.0" : operandBuffer);
     }
 
     function applyMathFunction() {
@@ -172,7 +167,7 @@ DSM.StateMachine {
         display = "";
         errorMessage = "";
         expressionBuilder.clear();
-        key = "";
+        key = "0";
         operandBuffer = "";
         operand1 = 0.0;
         operand2 = 0.0;
@@ -327,7 +322,10 @@ DSM.StateMachine {
 
             DSM.State {
                 id: digitState
-                onEntered: accumulate();
+                onEntered: {
+                    operandBuffer = operandBuffer === "0" ? "" : operandBuffer;
+                    accumulate();
+                }
                 DSM.SignalTransition {
                     signal: digitPressed
                     onTriggered: accumulate();
@@ -344,7 +342,10 @@ DSM.StateMachine {
 
             DSM.State {
                 id: pointState
-                onEntered: accumulate();
+                onEntered: {
+                    operandBuffer = operandBuffer === "" ? "0" : operandBuffer;
+                    accumulate();
+                }
                 DSM.SignalTransition {
                     signal: digitPressed
                     onTriggered: accumulate();
