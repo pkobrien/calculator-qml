@@ -25,6 +25,7 @@ DSM.StateMachine {
     signal clearPressed()
     signal digitPressed()
     signal equalPressed()
+    signal error()
     signal functionPressed()
     signal muldivPressed()
     signal pointPressed()
@@ -33,7 +34,7 @@ DSM.StateMachine {
     function accumulate() {
         operandBuffer += key;
         expressionBuilder.pop();
-        expressionBuilder.push(operandBuffer === "0." ? "0.0" : operandBuffer);
+        expressionBuilder.push(operandBuffer.replace(trailingPointRegExp, ""));
     }
 
     function applyMathFunction() {
@@ -53,6 +54,9 @@ DSM.StateMachine {
         if (!operator1) {
             operand1 = newValue;
             calculationResult = newValue;
+        }
+        if (isNaN(newValue)) {
+            error();
         }
     }
 
@@ -165,7 +169,7 @@ DSM.StateMachine {
     function reset() {
         calculationResult = 0.0;
         display = "";
-        errorMessage = "";
+        errorMessage = "ERROR";
         expressionBuilder.clear();
         key = "0";
         operandBuffer = "";
@@ -178,7 +182,7 @@ DSM.StateMachine {
     function stringify(value) {
         var newValue = value;
         if (typeof value === "number") {
-          newValue = value.toFixed(significantDigits);
+            newValue = value.toFixed(significantDigits);
             if (newValue.indexOf(".") !== -1) {
                 newValue = newValue.replace(trailingZerosRegExp, "");
                 newValue = newValue.replace(trailingPointRegExp, "");
@@ -203,7 +207,7 @@ DSM.StateMachine {
         }
     }
 
-    function withTrailingDecimal(value) {
+    function withTrailingPoint(value) {
         var newValue = stringify(value);
         return newValue.indexOf(".") === -1 ? newValue + "." : newValue;
     }
@@ -274,19 +278,6 @@ DSM.StateMachine {
         }
 
         DSM.State {
-            id: errorState
-            onEntered: {
-                display = Qt.binding(show);
-                expressionBuilder.clear();
-                expressionBuilder.push("Press Clear to continue...");
-            }
-
-            function show() {
-                return errorMessage;
-            }
-        }
-
-        DSM.State {
             id: accumulateState
             initialState: zeroState
 
@@ -296,9 +287,13 @@ DSM.StateMachine {
             }
 
             function show() {
-                return withTrailingDecimal(operandBuffer);
+                return withTrailingPoint(operandBuffer);
             }
 
+            DSM.SignalTransition {
+                signal: error
+                targetState: errorState
+            }
             DSM.SignalTransition {
                 signal: addsubPressed
                 targetState: operatorState
@@ -380,6 +375,10 @@ DSM.StateMachine {
             id: computeState
 
             DSM.SignalTransition {
+                signal: error
+                targetState: errorState
+            }
+            DSM.SignalTransition {
                 signal: digitPressed
                 targetState: digitState
             }
@@ -393,11 +392,22 @@ DSM.StateMachine {
             }
 
             DSM.State {
+                id: errorState
+
+                onEntered: display = errorMessage;
+                onExited: {
+                    var temp = key;
+                    reset();
+                    key = temp;
+                }
+            }
+
+            DSM.State {
                 id: operatorState
 
                 onEntered: {
-                    updateOperator();
                     display = Qt.binding(show);
+                    updateOperator();
                 }
 
                 onExited: clear();
@@ -408,7 +418,7 @@ DSM.StateMachine {
 
                 function show() {
                     var value = operator2 ? operandBuffer : operand1;
-                    return withTrailingDecimal(value);
+                    return withTrailingPoint(value);
                 }
 
                 DSM.SignalTransition {
@@ -451,7 +461,7 @@ DSM.StateMachine {
                 }
 
                 function show() {
-                    return withTrailingDecimal(calculationResult);
+                    return withTrailingPoint(calculationResult);
                 }
 
                 function update() {
