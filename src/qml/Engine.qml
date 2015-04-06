@@ -20,6 +20,9 @@ QtObject {
     readonly property var started: __sm.started
     readonly property var stopped: __sm.stopped
 
+//    readonly property var isNoop: __sm.isNoop
+    readonly property var noopKeys: __sm.noopKeys
+
     // Private Internals
 
     property var __sm: App.StateMachine {  }

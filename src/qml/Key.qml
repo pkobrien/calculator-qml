@@ -10,6 +10,8 @@ App.KeyForm {
     fontSize: dp(20)
 
     property var engine
+//    property bool noop: engine.isNoop(value)
+    property bool noop: engine.noopKeys.indexOf(value.toLowerCase()) !== -1
     property string value
 
     onClicked: engine.process(key.value);

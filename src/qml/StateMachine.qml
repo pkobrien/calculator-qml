@@ -17,6 +17,56 @@ DSM.StateMachine {
     property string operator1
     property string operator2
 
+    property var groupKeysMap: ({})
+    property var keyNoopMap: ({})
+    property var keySignalMap: ({})
+    property var noopKeys: []
+
+    onNoopKeysChanged: {
+        console.log(noopKeys);
+        for (var key in keyNoopMap) {
+            keyNoopMap[key] = (noopKeys.indexOf(key) !== -1);
+        }
+    }
+
+//    function isNoop(input) {
+//        input = input.toLowerCase();
+//        if (input in keyNoopMap) {
+//            return keyNoopMap[input];
+//        }
+//        return false;
+//    }
+
+    QtObject {
+        id: setupMagic
+
+        property var keysList: [
+            {group: "addsub", signal: addsubPressed, keys: ["+", "-"]},
+            {group: "clear", signal: clearPressed, keys: ["c"]},
+            {group: "digit", signal: digitPressed,
+                keys: ["1", "2", "3", "4", "5", "6", "7", "8", "9"]},
+            {group: "equal", signal: equalPressed, keys: ["="]},
+            {group: "function", signal: functionPressed,
+                keys: ["acos", "asin", "atan", "cos", "exp", "log", "sqr", "sqrt"]},
+            {group: "muldiv", signal: muldivPressed, keys: ["*", "/"]},
+            {group: "point", signal: pointPressed, keys: ["."]},
+            {group: "zero", signal: zeroPressed, keys: ["0"]},
+        ]
+
+        Component.onCompleted: {
+            for (var i = 0; i < keysList.length; i++) {
+                var map = keysList[i];
+                groupKeysMap[map.group] = map.keys;
+                for (var j = 0; j < map.keys.length; j++) {
+                    var key = map.keys[j];
+//                    keyNoopMap[key] = QtObject { property bool noop: false };
+                    keyNoopMap[key] = false;
+                    keySignalMap[key] = map.signal;
+                }
+            }
+        }
+    }
+
     readonly property int significantDigits: 13
     readonly property var trailingZerosRegExp: /0+$/
     readonly property var trailingPointRegExp: /\.$/
@@ -129,39 +179,11 @@ DSM.StateMachine {
     }
 
     function process(input) {
+        var accepted = false;
         key = input.toLowerCase();
-        var accepted = true;
-        switch (key) {
-            default:
-                accepted = false;
-                break;
-            case "1": case "2": case "3":
-            case "4": case "5": case "6":
-            case "7": case "8": case "9":
-                digitPressed();
-                break;
-            case "0":
-                zeroPressed();
-                break;
-            case ".":
-                pointPressed();
-                break;
-            case "c":
-                clearPressed();
-                break;
-            case "=":
-                equalPressed();
-                break;
-            case "+": case "-":
-                addsubPressed();
-                break;
-            case "*": case "/":
-                muldivPressed();
-                break;
-            case "acos": case "asin": case "atan": case "cos":
-            case "exp": case "log": case "sqr": case "sqrt":
-                functionPressed();
-                break;
+        if (key in keySignalMap) {
+            accepted = true;
+            keySignalMap[key]();
         }
         return accepted;
     }
@@ -172,6 +194,7 @@ DSM.StateMachine {
         errorMessage = "ERROR";
         expressionBuilder.clear();
         key = "0";
+        noopKeys = [];
         operandBuffer = "";
         operand1 = 0.0;
         operand2 = 0.0;
@@ -209,7 +232,7 @@ DSM.StateMachine {
 
     function withTrailingPoint(value) {
         var newValue = stringify(value);
-        return newValue.indexOf(".") === -1 ? newValue + "." : newValue;
+        return (newValue.indexOf(".") === -1) ? newValue + "." : newValue;
     }
 
     /* TODO
@@ -318,8 +341,9 @@ DSM.StateMachine {
             DSM.State {
                 id: digitState
                 onEntered: {
-                    operandBuffer = operandBuffer === "0" ? "" : operandBuffer;
+                    operandBuffer = (operandBuffer === "0") ? "" : operandBuffer;
                     accumulate();
+                    noopKeys = (operator1) ? [] : groupKeysMap["equal"];
                 }
                 DSM.SignalTransition {
                     signal: digitPressed
@@ -338,8 +362,9 @@ DSM.StateMachine {
             DSM.State {
                 id: pointState
                 onEntered: {
-                    operandBuffer = operandBuffer === "" ? "0" : operandBuffer;
+                    operandBuffer = (operandBuffer === "") ? "0" : operandBuffer;
                     accumulate();
+                    noopKeys = ((operator1) ? [] : groupKeysMap["equal"]).concat(groupKeysMap["point"]);
                 }
                 DSM.SignalTransition {
                     signal: digitPressed
@@ -356,7 +381,10 @@ DSM.StateMachine {
 
             DSM.State {
                 id: zeroState
-                onEntered: accumulate();
+                onEntered: {
+                    accumulate();
+                    noopKeys = ((operator1) ? [] : groupKeysMap["equal"]).concat(groupKeysMap["zero"]);
+                }
                 DSM.SignalTransition {
                     signal: digitPressed
                     targetState: digitState
@@ -394,7 +422,13 @@ DSM.StateMachine {
             DSM.State {
                 id: errorState
 
-                onEntered: display = errorMessage;
+                onEntered: {
+                    display = errorMessage;
+                    noopKeys = [].concat(groupKeysMap["addsub"],
+                                         groupKeysMap["equal"],
+                                         groupKeysMap["function"],
+                                         groupKeysMap["muldiv"]);
+                }
                 onExited: {
                     var temp = key;
                     reset();
@@ -408,6 +442,7 @@ DSM.StateMachine {
                 onEntered: {
                     display = Qt.binding(show);
                     updateOperator();
+                    noopKeys = groupKeysMap["function"];
                 }
 
                 onExited: clear();
@@ -417,7 +452,7 @@ DSM.StateMachine {
                 }
 
                 function show() {
-                    var value = operator2 ? operandBuffer : operand1;
+                    var value = (operator2) ? operandBuffer : operand1;
                     return withTrailingPoint(value);
                 }
 
@@ -449,6 +484,8 @@ DSM.StateMachine {
                     display = Qt.binding(show);
                     lastOperator = operator1;
                     update();
+                    noopKeys = (sm.config.equalKeyRepeatsLastOperation) ?
+                                [] : groupKeysMap["equal"];
                 }
 
                 onExited: clear();
