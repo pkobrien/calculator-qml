@@ -13,7 +13,7 @@ Rectangle {
 
     color: "transparent"
 
-    property bool disableNoopKeys: true
+    property bool enableNoopKeys: false
 
     ColumnLayout {
         id: main
@@ -30,7 +30,7 @@ Rectangle {
                 model: ["Sqr", "Sqrt", "Acos", "Asin", "Atan", "Cos", "Exp", "Log"]
 
                 App.Key {
-                    enabled: !(keypad.disableNoopKeys && noop)
+                    enabled: (keypad.enableNoopKeys || operable)
                     engine: keypad.engine
                     text: modelData
                     value: modelData
@@ -53,7 +53,7 @@ Rectangle {
                     model: ["CM", "Up", "RM", "+/-", "M-", "CE", "M+", "C"]
 
                     App.Key {
-                        enabled: !(keypad.disableNoopKeys && noop)
+                        enabled: (keypad.enableNoopKeys || operable)
                         engine: keypad.engine
                         text: modelData
                         value: modelData
@@ -71,7 +71,7 @@ Rectangle {
                     model: ["7", "8", "9", "4", "5", "6", "1", "2", "3", "0", "."]
 
                     App.Key {
-                        enabled: !(keypad.disableNoopKeys && noop)
+                        enabled: (keypad.enableNoopKeys || operable)
                         engine: keypad.engine
                         text: modelData
                         value: modelData
@@ -99,7 +99,7 @@ Rectangle {
                     model: ["-", "%", "+", "*", "/", "="]
 
                     App.Key {
-                        enabled: !(keypad.disableNoopKeys && noop)
+                        enabled: (keypad.enableNoopKeys || operable)
                         engine: keypad.engine
                         text: modelData
                         value: modelData

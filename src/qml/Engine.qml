@@ -10,7 +10,8 @@ QtObject {
 
     readonly property string display: __sm.display
     readonly property string expression: __sm.expression
-    readonly property real result: __sm.calculationResult
+    readonly property string result: __sm.calculationResultText
+
     readonly property bool running: __sm.running
 
     readonly property var process: __sm.process
@@ -20,8 +21,8 @@ QtObject {
     readonly property var started: __sm.started
     readonly property var stopped: __sm.stopped
 
-//    readonly property var isNoop: __sm.isNoop
-    readonly property var noopKeys: __sm.noopKeys
+    readonly property var noop: __sm.noop
+    readonly property var supports: __sm.supports
 
     // Private Internals
 

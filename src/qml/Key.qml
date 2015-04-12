@@ -10,9 +10,12 @@ App.KeyForm {
     fontSize: dp(20)
 
     property var engine
-//    property bool noop: engine.isNoop(value)
-    property bool noop: engine.noopKeys.indexOf(value.toLowerCase()) !== -1
+    property bool noop: engine.noop(value)
+    property bool operable: supported && !noop
+    property bool supported
     property string value
 
     onClicked: engine.process(key.value);
+
+    Component.onCompleted: key.supported = engine.supports(key.value);
 }

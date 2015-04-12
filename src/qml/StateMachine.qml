@@ -7,6 +7,7 @@ DSM.StateMachine {
     property alias config: config
 
     property real calculationResult
+    property string calculationResultText: stringify(calculationResult)
     property string display
     property string expression: expressionBuilder.text
     property string errorMessage
@@ -20,52 +21,21 @@ DSM.StateMachine {
     property var groupKeysMap: ({})
     property var keyNoopMap: ({})
     property var keySignalMap: ({})
+
+    property var keysList: [
+        {group: "addsub", signal: addsubPressed, keys: ["+", "-"]},
+        {group: "clear", signal: clearPressed, keys: ["c"]},
+        {group: "digit", signal: digitPressed,
+            keys: ["1", "2", "3", "4", "5", "6", "7", "8", "9"]},
+        {group: "equal", signal: equalPressed, keys: ["="]},
+        {group: "function", signal: functionPressed,
+            keys: ["acos", "asin", "atan", "cos", "exp", "log", "sqr", "sqrt"]},
+        {group: "muldiv", signal: muldivPressed, keys: ["*", "/"]},
+        {group: "point", signal: pointPressed, keys: ["."]},
+        {group: "zero", signal: zeroPressed, keys: ["0"]},
+    ]
+
     property var noopKeys: []
-
-    onNoopKeysChanged: {
-        console.log(noopKeys);
-        for (var key in keyNoopMap) {
-            keyNoopMap[key] = (noopKeys.indexOf(key) !== -1);
-        }
-    }
-
-//    function isNoop(input) {
-//        input = input.toLowerCase();
-//        if (input in keyNoopMap) {
-//            return keyNoopMap[input];
-//        }
-//        return false;
-//    }
-
-    QtObject {
-        id: setupMagic
-
-        property var keysList: [
-            {group: "addsub", signal: addsubPressed, keys: ["+", "-"]},
-            {group: "clear", signal: clearPressed, keys: ["c"]},
-            {group: "digit", signal: digitPressed,
-                keys: ["1", "2", "3", "4", "5", "6", "7", "8", "9"]},
-            {group: "equal", signal: equalPressed, keys: ["="]},
-            {group: "function", signal: functionPressed,
-                keys: ["acos", "asin", "atan", "cos", "exp", "log", "sqr", "sqrt"]},
-            {group: "muldiv", signal: muldivPressed, keys: ["*", "/"]},
-            {group: "point", signal: pointPressed, keys: ["."]},
-            {group: "zero", signal: zeroPressed, keys: ["0"]},
-        ]
-
-        Component.onCompleted: {
-            for (var i = 0; i < keysList.length; i++) {
-                var map = keysList[i];
-                groupKeysMap[map.group] = map.keys;
-                for (var j = 0; j < map.keys.length; j++) {
-                    var key = map.keys[j];
-//                    keyNoopMap[key] = QtObject { property bool noop: false };
-                    keyNoopMap[key] = false;
-                    keySignalMap[key] = map.signal;
-                }
-            }
-        }
-    }
 
     readonly property int significantDigits: 13
     readonly property var trailingZerosRegExp: /0+$/
@@ -105,12 +75,9 @@ DSM.StateMachine {
             operand1 = newValue;
             calculationResult = newValue;
         }
-        if (isNaN(newValue)) {
-            error();
-        }
     }
 
-    function calculateAll() {
+    function calculateAll(updateExpression) {
         var num = Number(operandBuffer);
         if (operator2) {
             switch (operator2) {
@@ -143,6 +110,10 @@ DSM.StateMachine {
             operator1 = "";
         } else {
             operand1 = num;
+        }
+        if (updateExpression) {
+            expressionBuilder.push("=");
+            expressionBuilder.push(operand1);
         }
         calculationResult = operand1;
     }
@@ -178,9 +149,13 @@ DSM.StateMachine {
         }
     }
 
-    function process(input) {
+    function noop(uiKey) {
+        return (supports(uiKey)) ? keyNoopMap[uiKey.toLowerCase()].noop : true;
+    }
+
+    function process(uiKey) {
         var accepted = false;
-        key = input.toLowerCase();
+        key = uiKey.toLowerCase();
         if (key in keySignalMap) {
             accepted = true;
             keySignalMap[key]();
@@ -192,6 +167,7 @@ DSM.StateMachine {
         calculationResult = 0.0;
         display = "";
         errorMessage = "ERROR";
+        expressionBuilder.errorMode = false;
         expressionBuilder.clear();
         key = "0";
         noopKeys = [];
@@ -200,6 +176,22 @@ DSM.StateMachine {
         operand2 = 0.0;
         operator1 = "";
         operator2 = "";
+    }
+
+    function setup() {
+        if (Object.keys(keySignalMap).length) {
+            return;
+        }
+        var qml = "import QtQuick 2.4; QtObject { property bool noop: false }"
+        for (var i = 0; i < keysList.length; i++) {
+            var map = keysList[i];
+            groupKeysMap[map.group] = map.keys;
+            for (var j = 0; j < map.keys.length; j++) {
+                var key = map.keys[j];
+                keyNoopMap[key] = Qt.createQmlObject(qml, sm, "NoopQtObject");
+                keySignalMap[key] = map.signal;
+            }
+        }
     }
 
     function stringify(value) {
@@ -212,6 +204,13 @@ DSM.StateMachine {
             }
         }
         return newValue;
+    }
+
+    function supports(uiKey) {
+        // We need to call setup() here because this function can get called
+        // before Component.onCompleted() takes place, unfortunately.
+        setup();
+        return (uiKey.toLowerCase() in keySignalMap);
     }
 
     function updateOperator() {
@@ -234,6 +233,24 @@ DSM.StateMachine {
         var newValue = stringify(value);
         return (newValue.indexOf(".") === -1) ? newValue + "." : newValue;
     }
+
+    onCalculationResultChanged: {
+        if (!isFinite(calculationResult)) {
+            error();
+        }
+    }
+
+    onError: {
+        expressionBuilder.errorMode = true;
+    }
+
+    onNoopKeysChanged: {
+        for (var key in keyNoopMap) {
+            keyNoopMap[key].noop = (noopKeys.indexOf(key) !== -1);
+        }
+    }
+
+    Component.onCompleted: setup();
 
     /* TODO
 
@@ -261,13 +278,17 @@ DSM.StateMachine {
     QtObject {
         id: expressionBuilder
 
+        property bool errorMode: false
+
         property string text: ""
 
         property var __buffer: []
 
         function clear() {
-            __buffer.length = 0;
-            _updateText();
+            if (!errorMode) {
+                __buffer.length = 0;
+                _updateText();
+            }
         }
 
         function pop() {
@@ -320,7 +341,7 @@ DSM.StateMachine {
             DSM.SignalTransition {
                 signal: addsubPressed
                 targetState: operatorState
-                onTriggered: calculateAll();
+                onTriggered: calculateAll(false);
             }
             DSM.SignalTransition {
                 signal: muldivPressed
@@ -364,7 +385,8 @@ DSM.StateMachine {
                 onEntered: {
                     operandBuffer = (operandBuffer === "") ? "0" : operandBuffer;
                     accumulate();
-                    noopKeys = ((operator1) ? [] : groupKeysMap["equal"]).concat(groupKeysMap["point"]);
+                    noopKeys = (operator1) ? [] : [].concat(groupKeysMap["equal"],
+                                                            groupKeysMap["point"]);
                 }
                 DSM.SignalTransition {
                     signal: digitPressed
@@ -383,7 +405,8 @@ DSM.StateMachine {
                 id: zeroState
                 onEntered: {
                     accumulate();
-                    noopKeys = ((operator1) ? [] : groupKeysMap["equal"]).concat(groupKeysMap["zero"]);
+                    noopKeys = (operator1) ? [] : [].concat(groupKeysMap["equal"],
+                                                            groupKeysMap["zero"]);
                 }
                 DSM.SignalTransition {
                     signal: digitPressed
@@ -502,9 +525,7 @@ DSM.StateMachine {
                 }
 
                 function update() {
-                    calculateAll();
-                    expressionBuilder.push("=");
-                    expressionBuilder.push(calculationResult);
+                    calculateAll(true);
                 }
 
                 DSM.SignalTransition {
