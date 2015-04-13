@@ -1,7 +1,6 @@
 <RCC>
     <qresource prefix="/">
         <file>main.qml</file>
-        <file>main.cpp</file>
         <file>qml/Actions.qml</file>
         <file>qml/Active.qml</file>
         <file>qml/ApplicationWindow.qml</file>
