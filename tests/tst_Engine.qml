@@ -181,6 +181,20 @@ Item {
             util.calculate_and_compare(engine, data);
         }
 
+        function test_error_divide_by_zero() {
+            var data = [ // keys, expression, display, result // index
+                ["1 / 0 =", "1 / 0 = Infinity", "ERROR", "Infinity"], // 0
+            ];
+            util.calculate_and_compare(engine, data);
+        }
+
+        function test_error_logarithm() {
+            var data = [ // keys, expression, display, result // index
+                ["1 / 0 =", "1 / 0 = Infinity", "ERROR", "Infinity"], // 0
+            ];
+            util.calculate_and_compare(engine, data);
+        }
+
         function test_repeated_equals_with_equalKeyRepeatsLastOperation_false() {
             var data = [ // keys, expression, display, result // index
                 ["2 + 3 * 4 = = =", "2 + 3 * 4 = 14", "14.", "14"], // 0
