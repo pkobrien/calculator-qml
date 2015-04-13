@@ -6,15 +6,15 @@ DSM.StateMachine {
 
     property alias config: config
 
-    property real calculationResult
+    property double calculationResult
     property string calculationResultText: stringify(calculationResult)
     property string display
     property string expression: expressionBuilder.text
     property string errorMessage
     property string key
     property string operandBuffer
-    property real operand1
-    property real operand2
+    property double operand1
+    property double operand2
     property string operator1
     property string operator2
 
@@ -350,12 +350,12 @@ DSM.StateMachine {
             }
             DSM.SignalTransition {
                 signal: equalPressed
-                guard: operator1
+                guard: (operator1)
                 targetState: resultState
             }
             DSM.SignalTransition {
                 signal: functionPressed
-                guard: operandBuffer
+                guard: (operandBuffer !== "")
                 onTriggered: applyMathFunction();
             }
 
@@ -385,8 +385,10 @@ DSM.StateMachine {
                 onEntered: {
                     operandBuffer = (operandBuffer === "") ? "0" : operandBuffer;
                     accumulate();
-                    noopKeys = (operator1) ? [] : [].concat(groupKeysMap["equal"],
-                                                            groupKeysMap["point"]);
+                    noopKeys = groupKeysMap["point"];
+                    if (!operator1) {
+                        noopKeys.concat(groupKeysMap["equal"]);
+                    }
                 }
                 DSM.SignalTransition {
                     signal: digitPressed
@@ -405,8 +407,10 @@ DSM.StateMachine {
                 id: zeroState
                 onEntered: {
                     accumulate();
-                    noopKeys = (operator1) ? [] : [].concat(groupKeysMap["equal"],
-                                                            groupKeysMap["zero"]);
+                    noopKeys = groupKeysMap["zero"];
+                    if (!operator1) {
+                        noopKeys.concat(groupKeysMap["equal"]);
+                    }
                 }
                 DSM.SignalTransition {
                     signal: digitPressed
@@ -530,7 +534,7 @@ DSM.StateMachine {
 
                 DSM.SignalTransition {
                     signal: equalPressed
-                    guard: sm.config.equalKeyRepeatsLastOperation
+                    guard: (sm.config.equalKeyRepeatsLastOperation)
                     onTriggered: {
                         // Repeat the last operation using the
                         // previous buffer and operator.
