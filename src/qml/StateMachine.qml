@@ -12,6 +12,7 @@ DSM.StateMachine {
     property string expression: expressionBuilder.text
     property string errorMessage
     property string key
+    property string memoryText: memory.text
     property string operandBuffer
     property double operand1
     property double operand2
@@ -23,16 +24,19 @@ DSM.StateMachine {
     property var keySignalMap: ({})
 
     property var keysList: [
-        {group: "addsub", signal: addsubPressed, keys: ["+", "-"]},
-        {group: "clear", signal: clearPressed, keys: ["c"]},
-        {group: "digit", signal: digitPressed,
+        {group: "AddSub", signal: addSubPressed, keys: ["+", "-"]},
+        {group: "Clear", signal: clearPressed, keys: ["c"]},
+        {group: "Digit", signal: digitPressed,
             keys: ["1", "2", "3", "4", "5", "6", "7", "8", "9"]},
-        {group: "equal", signal: equalPressed, keys: ["="]},
-        {group: "function", signal: functionPressed,
+        {group: "Equal", signal: equalPressed, keys: ["="]},
+        {group: "Function", signal: functionPressed,
             keys: ["acos", "asin", "atan", "cos", "exp", "log", "sqr", "sqrt"]},
-        {group: "muldiv", signal: muldivPressed, keys: ["*", "/"]},
-        {group: "point", signal: pointPressed, keys: ["."]},
-        {group: "zero", signal: zeroPressed, keys: ["0"]},
+        {group: "MemoryClear", signal: memoryClearPressed, keys: ["mc", "cm"]},
+        {group: "MemoryRecall", signal: memoryRecallPressed, keys: ["mr", "rm"]},
+        {group: "MemoryUpdate", signal: memoryUpdatePressed, keys: ["m+", "m-", "ms", "sm"]},
+        {group: "MulDiv", signal: mulDivPressed, keys: ["*", "/"]},
+        {group: "Point", signal: pointPressed, keys: ["."]},
+        {group: "Zero", signal: zeroPressed, keys: ["0"]},
     ]
 
     property var noopKeys: []
@@ -41,13 +45,18 @@ DSM.StateMachine {
     readonly property var trailingZerosRegExp: /0+$/
     readonly property var trailingPointRegExp: /\.$/
 
-    signal addsubPressed()
+    property bool __setup: false
+
+    signal addSubPressed()
     signal clearPressed()
     signal digitPressed()
     signal equalPressed()
     signal error()
     signal functionPressed()
-    signal muldivPressed()
+    signal memoryClearPressed()
+    signal memoryRecallPressed()
+    signal memoryUpdatePressed()
+    signal mulDivPressed()
     signal pointPressed()
     signal zeroPressed()
 
@@ -149,6 +158,17 @@ DSM.StateMachine {
         }
     }
 
+    function clearOperandBuffer() {
+        expressionBuilder.pop();
+        operandBuffer = "";
+    }
+
+    function replaceOperandBuffer(value) {
+        clearOperandBuffer();
+        operandBuffer = stringify(value);
+        expressionBuilder.push(operandBuffer);
+    }
+
     function noop(uiKey) {
         return (supports(uiKey)) ? keyNoopMap[uiKey.toLowerCase()].noop : true;
     }
@@ -179,9 +199,10 @@ DSM.StateMachine {
     }
 
     function setup() {
-        if (Object.keys(keySignalMap).length) {
+        if (__setup) {
             return;
         }
+        reset();
         var qml = "import QtQuick 2.4; QtObject { property bool noop: false }"
         for (var i = 0; i < keysList.length; i++) {
             var map = keysList[i];
@@ -192,11 +213,14 @@ DSM.StateMachine {
                 keySignalMap[key] = map.signal;
             }
         }
+        __setup = true;
     }
 
     function stringify(value) {
         var newValue = value;
-        if (typeof value === "number") {
+        if (value === undefined || value === null) {
+            newValue = "";
+        } else if (typeof value === "number") {
             newValue = value.toFixed(significantDigits);
             if (newValue.indexOf(".") !== -1) {
                 newValue = newValue.replace(trailingZerosRegExp, "");
@@ -249,6 +273,8 @@ DSM.StateMachine {
             keyNoopMap[key].noop = (noopKeys.indexOf(key) !== -1);
         }
     }
+
+    onStopped: reset();
 
     Component.onCompleted: setup();
 
@@ -307,6 +333,70 @@ DSM.StateMachine {
         }
     }
 
+    QtObject {
+        id: memory
+
+        property bool active: false
+        property string text: (!active) ? "" : stringify(value)
+        property double value: 0.0
+
+        function clear() {
+            active = false;
+            value = 0.0;
+        }
+
+        function recall() {
+            replaceOperandBuffer(value);
+        }
+
+        function update(input) {
+            active = true;
+            var num = Number(input);
+            value = value || 0.0;
+            switch (key) {
+                case "ms": case "sm":
+                    value = num;
+                    break;
+                case "m+":
+                    value += num;
+                    break;
+                case "m-":
+                    value -= num;
+                    break;
+            }
+        }
+    }
+
+    QtObject {
+        id: noopGroups
+
+        property var __buffer: []
+
+        function clear() {
+            __buffer.length = 0;
+        }
+
+        function remove(groups) {
+            var index;
+            for (var group in groups) {
+                for (var noopKey in groupKeysMap[group]) {
+                    index = __buffer.indexOf(noopKey);
+                    if (index !== -1) {
+                        __buffer.splice(index, 1);
+                    }
+                }
+            }
+            noopKeys = __buffer;
+        }
+
+        function add(groups) {
+            for (var group in groups) {
+                __buffer.concat(groupKeysMap[group]);
+            }
+            noopKeys = __buffer;
+        }
+    }
+
     initialState: clearState
 
     DSM.State {
@@ -314,11 +404,36 @@ DSM.StateMachine {
 
         initialState: accumulateState
 
-        onEntered: reset();
-
         DSM.SignalTransition {
             signal: clearPressed
             targetState: clearState
+            onTriggered: reset();
+        }
+        DSM.SignalTransition {
+            signal: digitPressed
+            targetState: digitState
+        }
+        DSM.SignalTransition {
+            signal: error
+            targetState: errorState
+        }
+        DSM.SignalTransition {
+            signal: memoryClearPressed
+            guard: (memory.active)
+            onTriggered: memory.clear();
+        }
+        DSM.SignalTransition {
+            signal: memoryRecallPressed
+            guard: (memory.active)
+            targetState: memoryRecallState
+        }
+        DSM.SignalTransition {
+            signal: pointPressed
+            targetState: pointState
+        }
+        DSM.SignalTransition {
+            signal: zeroPressed
+            targetState: zeroState
         }
 
         DSM.State {
@@ -327,7 +442,9 @@ DSM.StateMachine {
 
             onEntered: {
                 display = Qt.binding(show);
-                expressionBuilder.push("");
+                if (operandBuffer === "") {
+                    expressionBuilder.push("");
+                }
             }
 
             function show() {
@@ -335,18 +452,9 @@ DSM.StateMachine {
             }
 
             DSM.SignalTransition {
-                signal: error
-                targetState: errorState
-            }
-            DSM.SignalTransition {
-                signal: addsubPressed
+                signal: addSubPressed
                 targetState: operatorState
                 onTriggered: calculateAll(false);
-            }
-            DSM.SignalTransition {
-                signal: muldivPressed
-                targetState: operatorState
-                onTriggered: calculateLast();
             }
             DSM.SignalTransition {
                 signal: equalPressed
@@ -355,24 +463,37 @@ DSM.StateMachine {
             }
             DSM.SignalTransition {
                 signal: functionPressed
-                guard: (operandBuffer !== "")
                 onTriggered: applyMathFunction();
+            }
+            DSM.SignalTransition {
+                signal: memoryUpdatePressed
+                targetState: memoryUpdateState
+                onTriggered: memory.update(operandBuffer);
+            }
+            DSM.SignalTransition {
+                signal: mulDivPressed
+                targetState: operatorState
+                onTriggered: calculateLast();
             }
 
             DSM.State {
                 id: digitState
+                property var noops: ["Equal"]
                 onEntered: {
                     operandBuffer = (operandBuffer === "0") ? "" : operandBuffer;
                     accumulate();
-                    noopKeys = (operator1) ? [] : groupKeysMap["equal"];
+                    if (!operator1) {
+                        noopGroups.add(noops);
+                    }
+//                    noopKeys = (operator1) ? [] : groupKeysMap["Equal"];
                 }
+                onExited: {
+                    noopGroups.remove(noops);
+                }
+
                 DSM.SignalTransition {
                     signal: digitPressed
                     onTriggered: accumulate();
-                }
-                DSM.SignalTransition {
-                    signal: pointPressed
-                    targetState: pointState
                 }
                 DSM.SignalTransition {
                     signal: zeroPressed
@@ -381,13 +502,51 @@ DSM.StateMachine {
             }
 
             DSM.State {
+                id: memoryState
+                DSM.SignalTransition {
+                    signal: digitPressed
+                    targetState: digitState
+                    onTriggered: clearOperandBuffer();
+                }
+                DSM.SignalTransition {
+                    signal: pointPressed
+                    targetState: pointState
+                    onTriggered: clearOperandBuffer();
+                }
+                DSM.SignalTransition {
+                    signal: zeroPressed
+                    targetState: zeroState;
+                    onTriggered: clearOperandBuffer();
+                }
+
+                DSM.State {
+                    id: memoryRecallState
+                    onEntered: {
+                        memory.recall();
+                        noopKeys = groupKeysMap["MemoryRecall"];
+                    }
+                    DSM.SignalTransition {
+                        signal: memoryRecallPressed
+                    }
+                }
+
+                DSM.State {
+                    id: memoryUpdateState
+                    DSM.SignalTransition {
+                        signal: memoryUpdatePressed
+                        onTriggered: memory.update(operandBuffer);
+                    }
+                }
+            }
+
+            DSM.State {
                 id: pointState
                 onEntered: {
                     operandBuffer = (operandBuffer === "") ? "0" : operandBuffer;
                     accumulate();
-                    noopKeys = groupKeysMap["point"];
+                    noopKeys = groupKeysMap["Point"];
                     if (!operator1) {
-                        noopKeys.concat(groupKeysMap["equal"]);
+                        noopKeys.concat(groupKeysMap["Equal"]);
                     }
                 }
                 DSM.SignalTransition {
@@ -407,18 +566,10 @@ DSM.StateMachine {
                 id: zeroState
                 onEntered: {
                     accumulate();
-                    noopKeys = groupKeysMap["zero"];
+                    noopKeys = groupKeysMap["Zero"];
                     if (!operator1) {
-                        noopKeys.concat(groupKeysMap["equal"]);
+                        noopKeys.concat(groupKeysMap["Equal"]);
                     }
-                }
-                DSM.SignalTransition {
-                    signal: digitPressed
-                    targetState: digitState
-                }
-                DSM.SignalTransition {
-                    signal: pointPressed
-                    targetState: pointState
                 }
                 DSM.SignalTransition {
                     signal: zeroPressed
@@ -427,140 +578,127 @@ DSM.StateMachine {
         }
 
         DSM.State {
-            id: computeState
+            id: errorState
+
+            onEntered: {
+                display = errorMessage;
+                noopKeys = [].concat(groupKeysMap["AddSub"],
+                                     groupKeysMap["Equal"],
+                                     groupKeysMap["Function"],
+                                     groupKeysMap["MemoryUpdate"],
+                                     groupKeysMap["MulDiv"]);
+            }
+            onExited: {
+                var temp = key;
+                reset();
+                key = temp;
+            }
+        }
+
+        DSM.State {
+            id: operatorState
+
+            onEntered: {
+                display = Qt.binding(show);
+                updateOperator();
+                noopKeys = [].concat(groupKeysMap["Function"],
+                                     groupKeysMap["MemoryUpdate"]);
+            }
+
+            onExited: clear();
+
+            function clear() {
+                operandBuffer = "";
+            }
+
+            function show() {
+                var value = (operator2) ? operandBuffer : operand1;
+                return withTrailingPoint(value);
+            }
 
             DSM.SignalTransition {
-                signal: error
-                targetState: errorState
+                signal: addSubPressed
+                onTriggered: updateOperator();
             }
             DSM.SignalTransition {
-                signal: digitPressed
-                targetState: digitState
+                signal: equalPressed
+                targetState: resultState
+                onTriggered: {
+                    operandBuffer = stringify(operand1);
+                    operand2 = 0.00;
+                    operator2 = "";
+                }
             }
             DSM.SignalTransition {
-                signal: pointPressed
-                targetState: pointState
+                signal: mulDivPressed
+                onTriggered: updateOperator();
+            }
+        }
+
+        DSM.State {
+            id: resultState
+
+            property string lastOperator
+
+            onEntered: {
+                display = Qt.binding(show);
+                lastOperator = operator1;
+                update();
+                noopKeys = (sm.config.equalKeyRepeatsLastOperation) ?
+                            [] : groupKeysMap["Equal"];
+            }
+
+            onExited: clear();
+
+            function clear() {
+                lastOperator = "";
+                operandBuffer = "";
+                operator1 = "";
+                expressionBuilder.clear();
+            }
+
+            function show() {
+                return withTrailingPoint(calculationResult);
+            }
+
+            function update() {
+                calculateAll(true);
+            }
+
+            DSM.SignalTransition {
+                signal: addSubPressed
+                targetState: operatorState
+                onTriggered: expressionBuilder.push(calculationResult);
             }
             DSM.SignalTransition {
-                signal: zeroPressed
-                targetState: zeroState
-            }
-
-            DSM.State {
-                id: errorState
-
-                onEntered: {
-                    display = errorMessage;
-                    noopKeys = [].concat(groupKeysMap["addsub"],
-                                         groupKeysMap["equal"],
-                                         groupKeysMap["function"],
-                                         groupKeysMap["muldiv"]);
-                }
-                onExited: {
-                    var temp = key;
-                    reset();
-                    key = temp;
+                signal: equalPressed
+                guard: (sm.config.equalKeyRepeatsLastOperation)
+                onTriggered: {
+                    // Repeat the last operation using the
+                    // previous buffer and operator.
+                    operator1 = resultState.lastOperator;
+                    resultState.update();
                 }
             }
-
-            DSM.State {
-                id: operatorState
-
-                onEntered: {
-                    display = Qt.binding(show);
-                    updateOperator();
-                    noopKeys = groupKeysMap["function"];
-                }
-
-                onExited: clear();
-
-                function clear() {
-                    operandBuffer = "";
-                }
-
-                function show() {
-                    var value = (operator2) ? operandBuffer : operand1;
-                    return withTrailingPoint(value);
-                }
-
-                DSM.SignalTransition {
-                    signal: addsubPressed
-                    onTriggered: updateOperator();
-                }
-                DSM.SignalTransition {
-                    signal: muldivPressed
-                    onTriggered: updateOperator();
-                }
-                DSM.SignalTransition {
-                    signal: equalPressed
-                    targetState: resultState
-                    onTriggered: {
-                        operandBuffer = stringify(operand1);
-                        operand2 = 0.00;
-                        operator2 = "";
-                    }
+            DSM.SignalTransition {
+                signal: functionPressed
+                onTriggered: {
+                    resultState.clear();
+                    operandBuffer = stringify(calculationResult);
+                    expressionBuilder.push(calculationResult);
+                    applyMathFunction();
                 }
             }
-
-            DSM.State {
-                id: resultState
-
-                property string lastOperator
-
-                onEntered: {
-                    display = Qt.binding(show);
-                    lastOperator = operator1;
-                    update();
-                    noopKeys = (sm.config.equalKeyRepeatsLastOperation) ?
-                                [] : groupKeysMap["equal"];
+            DSM.SignalTransition {
+                signal: memoryUpdatePressed
+                onTriggered: {
+                    memory.update(calculationResult);
                 }
-
-                onExited: clear();
-
-                function clear() {
-                    lastOperator = "";
-                    operandBuffer = "";
-                    operator1 = "";
-                    expressionBuilder.clear();
-                }
-
-                function show() {
-                    return withTrailingPoint(calculationResult);
-                }
-
-                function update() {
-                    calculateAll(true);
-                }
-
-                DSM.SignalTransition {
-                    signal: equalPressed
-                    guard: (sm.config.equalKeyRepeatsLastOperation)
-                    onTriggered: {
-                        // Repeat the last operation using the
-                        // previous buffer and operator.
-                        operator1 = resultState.lastOperator;
-                        resultState.update();
-                    }
-                }
-                DSM.SignalTransition {
-                    signal: addsubPressed
-                    targetState: operatorState
-                    onTriggered: expressionBuilder.push(calculationResult);
-                }
-                DSM.SignalTransition {
-                    signal: muldivPressed
-                    targetState: operatorState
-                    onTriggered: expressionBuilder.push(calculationResult);
-                }
-                DSM.SignalTransition {
-                    signal: functionPressed
-                    onTriggered: {
-                        resultState.clear();
-                        operandBuffer = stringify(calculationResult);
-                        expressionBuilder.push(calculationResult);
-                        applyMathFunction();
-                    }
-                }
+            }
+            DSM.SignalTransition {
+                signal: mulDivPressed
+                targetState: operatorState
+                onTriggered: expressionBuilder.push(calculationResult);
             }
         }
     }

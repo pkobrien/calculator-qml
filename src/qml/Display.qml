@@ -36,10 +36,21 @@ Rectangle {
             Layout.fillWidth: true
         }
 
-        Label {
-            text: engine.result
-            font.pixelSize: dp(16)
-            Layout.fillWidth: true
+        RowLayout {
+
+            Label {
+                text: "R: " + engine.result
+                font.pixelSize: dp(16)
+            }
+
+            Item {
+                Layout.fillWidth: true
+            }
+
+            Label {
+                text: "M: " + engine.memory
+                font.pixelSize: dp(16)
+            }
         }
     }
 }

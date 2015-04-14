@@ -73,6 +73,12 @@ Item {
             engine.stop();
             stop.wait(10);
             verify(!engine.running);
+            engine.start();
+            start.wait(10);
+            verify(engine.running);
+            compare(engine.display, "0.");
+            compare(engine.expression, "0");
+            compare(engine.result, "0");
         }
     }
 
@@ -181,6 +187,22 @@ Item {
             util.calculate_and_compare(engine, data);
         }
 
+        function test_clear() {
+            var data = [ // keys, expression, display, result // index
+                ["0", "0", "0.", "0"], // 0
+                ["C", "0", "0.", "0"], // 1
+                ["1", "1", "1.", "0"], // 2
+                ["+", "1 +", "1.", "1"], // 3
+                ["2", "1 + 2", "2.", "1"], // 4
+                ["=", "1 + 2 = 3", "3.", "3"], // 5
+                ["4", "4", "4.", "3"], // 6
+                ["5", "45", "45.", "3"], // 7
+                ["C", "0", "0.", "0"], // 8
+                ["C", "0", "0.", "0"], // 9
+            ];
+            util.calculate_and_compare(engine, data);
+        }
+
         function test_error_divide_by_zero() {
             var data = [ // keys, expression, display, result // index
                 ["1 / 0 =", "1 / 0 = Infinity", "ERROR", "Infinity"], // 0
@@ -190,7 +212,18 @@ Item {
 
         function test_error_logarithm() {
             var data = [ // keys, expression, display, result // index
-                ["1 / 0 =", "1 / 0 = Infinity", "ERROR", "Infinity"], // 0
+                ["1 log log", "log(log(1))", "ERROR", "-Infinity"], // 0
+                ["c 2 log log log", "log(log(log(2)))", "ERROR", "NaN"], // 1
+            ];
+            util.calculate_and_compare(engine, data);
+        }
+
+        function test_memory() {
+            var data = [ // keys, expression, display, result // index
+                ["2 m+ + 3 =", "2 + 3 = 5", "5.", "5"], // 0
+                ["+ mr * 5 =", "5 + 2 * 5 = 15", "15.", "15"], // 1
+//                ["", "", "", ""], // 2
+//                ["", "", "", ""], // 3
             ];
             util.calculate_and_compare(engine, data);
         }

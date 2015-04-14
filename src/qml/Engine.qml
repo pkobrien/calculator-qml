@@ -10,6 +10,7 @@ QtObject {
 
     readonly property string display: __sm.display
     readonly property string expression: __sm.expression
+    readonly property string memory: __sm.memoryText
     readonly property string result: __sm.calculationResultText
 
     readonly property bool running: __sm.running

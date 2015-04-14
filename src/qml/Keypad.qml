@@ -50,7 +50,7 @@ Rectangle {
                 rowSpacing: dp(2)
 
                 Repeater {
-                    model: ["CM", "Up", "RM", "+/-", "M-", "CE", "M+", "C"]
+                    model: ["MC", "Up", "MR", "+/-", "M-", "CE", "M+", "C"]
 
                     App.Key {
                         enabled: (keypad.enableNoopKeys || operable)
