@@ -1,6 +1,19 @@
 import QtQuick 2.4
 import QtQml.StateMachine 1.0 as DSM
 
+/* TODO
+
+Currently infix. Should also support postfix (RPN). And maybe Tenkey.
+
+"00" and "000" keys for entering large numbers.
+
+C or AC	All Clear
+CE	Clear (last) Entry; sometimes called CE/C:
+    a first press clears the last entry (CE), a second press clears all (C)
+±	Toggle positive/negative number
+
+*/
+
 DSM.StateMachine {
     id: sm
 
@@ -9,8 +22,8 @@ DSM.StateMachine {
     property double calculationResult
     property string calculationResultText: stringify(calculationResult)
     property string display
-    property string expression: expressionBuilder.text
     property string errorMessage
+    property string expression: expressionBuilder.text
     property string key
     property string memoryText: memory.text
     property string operandBuffer
@@ -18,10 +31,6 @@ DSM.StateMachine {
     property double operand2
     property string operator1
     property string operator2
-
-    property var groupKeysMap: ({})
-    property var keyNoopMap: ({})
-    property var keySignalMap: ({})
 
     property var keysList: [
         {group: "AddSub", signal: addSubPressed, keys: ["+", "-"]},
@@ -39,7 +48,9 @@ DSM.StateMachine {
         {group: "Zero", signal: zeroPressed, keys: ["0"]},
     ]
 
-    property var noopKeys: []
+    property var groupMap: ({})
+    property var keyMap: ({})
+    property var noops
 
     readonly property int significantDigits: 13
     readonly property var trailingZerosRegExp: /0+$/
@@ -170,15 +181,15 @@ DSM.StateMachine {
     }
 
     function noop(uiKey) {
-        return (supports(uiKey)) ? keyNoopMap[uiKey.toLowerCase()].noop : true;
+        return (supports(uiKey)) ? keyMap[uiKey.toLowerCase()].noop : true;
     }
 
     function process(uiKey) {
         var accepted = false;
         key = uiKey.toLowerCase();
-        if (key in keySignalMap) {
+        if (key in keyMap) {
             accepted = true;
-            keySignalMap[key]();
+            keyMap[key].signal();
         }
         return accepted;
     }
@@ -190,7 +201,7 @@ DSM.StateMachine {
         expressionBuilder.errorMode = false;
         expressionBuilder.clear();
         key = "0";
-        noopKeys = [];
+        noops = [];
         operandBuffer = "";
         operand1 = 0.0;
         operand2 = 0.0;
@@ -202,17 +213,32 @@ DSM.StateMachine {
         if (__setup) {
             return;
         }
-        reset();
-        var qml = "import QtQuick 2.4; QtObject { property bool noop: false }"
-        for (var i = 0; i < keysList.length; i++) {
-            var map = keysList[i];
-            groupKeysMap[map.group] = map.keys;
-            for (var j = 0; j < map.keys.length; j++) {
-                var key = map.keys[j];
-                keyNoopMap[key] = Qt.createQmlObject(qml, sm, "NoopQtObject");
-                keySignalMap[key] = map.signal;
+        var i;
+        var key;
+        var memKeys;
+        var qml = "import QtQuick 2.4;" +
+                  "QtObject { property bool noop: false; property var signal }"
+        for (i = 0; i < keysList.length; i++) {
+            var obj = keysList[i];
+            groupMap[obj.group] = obj.keys;
+            for (var j = 0; j < obj.keys.length; j++) {
+                key = obj.keys[j];
+                keyMap[key] = Qt.createQmlObject(qml, sm, "KeyInfoQtObject");
+                keyMap[key].signal = obj.signal;
             }
         }
+        memKeys = groupMap["MemoryClear"];
+        for (i = 0; i < memKeys.length; i++) {
+            key = memKeys[i];
+            keyMap[key].noop = Qt.binding(function() { return !memory.active; });
+        }
+        memKeys = groupMap["MemoryRecall"];
+        for (i = 0; i < memKeys.length; i++) {
+            key = memKeys[i];
+            keyMap[key].noop = Qt.binding(function() { return !memory.active
+                                                       || memory.recalled; });
+        }
+        reset();
         __setup = true;
     }
 
@@ -234,7 +260,7 @@ DSM.StateMachine {
         // We need to call setup() here because this function can get called
         // before Component.onCompleted() takes place, unfortunately.
         setup();
-        return (uiKey.toLowerCase() in keySignalMap);
+        return (uiKey.toLowerCase() in keyMap);
     }
 
     function updateOperator() {
@@ -268,32 +294,23 @@ DSM.StateMachine {
         expressionBuilder.errorMode = true;
     }
 
-    onNoopKeysChanged: {
-        for (var key in keyNoopMap) {
-            keyNoopMap[key].noop = (noopKeys.indexOf(key) !== -1);
+    onNoopsChanged: {
+        var memKeys = groupMap["MemoryClear"].concat(groupMap["MemoryRecall"]);
+        var noopKeys = [];
+        for (var i = 0; i < noops.length; i++) {
+            noopKeys.concat(groupMap[noops[i]]);
+        }
+        for (var key in keyMap) {
+            if (memKeys.indexOf(key) !== -1) {
+                continue;
+            }
+            keyMap[key].noop = (noopKeys.indexOf(key) !== -1);
         }
     }
 
     onStopped: reset();
 
     Component.onCompleted: setup();
-
-    /* TODO
-
-    Currently infix. Should also support postfix (RPN). And maybe Tenkey.
-
-    "00" and "000" keys for entering large numbers.
-
-    MC	Memory Clear
-    M+	Memory Addition
-    M-	Memory Subtraction
-    MR	Memory Recall
-    C or AC	All Clear
-    CE	Clear (last) Entry; sometimes called CE/C:
-        a first press clears the last entry (CE), a second press clears all (C)
-    ±	Toggle positive/negative number
-
-    */
 
     QtObject {
         id: config
@@ -337,6 +354,7 @@ DSM.StateMachine {
         id: memory
 
         property bool active: false
+        property bool recalled: false
         property string text: (!active) ? "" : stringify(value)
         property double value: 0.0
 
@@ -367,42 +385,12 @@ DSM.StateMachine {
         }
     }
 
-    QtObject {
-        id: noopGroups
-
-        property var __buffer: []
-
-        function clear() {
-            __buffer.length = 0;
-        }
-
-        function remove(groups) {
-            var index;
-            for (var group in groups) {
-                for (var noopKey in groupKeysMap[group]) {
-                    index = __buffer.indexOf(noopKey);
-                    if (index !== -1) {
-                        __buffer.splice(index, 1);
-                    }
-                }
-            }
-            noopKeys = __buffer;
-        }
-
-        function add(groups) {
-            for (var group in groups) {
-                __buffer.concat(groupKeysMap[group]);
-            }
-            noopKeys = __buffer;
-        }
-    }
-
     initialState: clearState
 
     DSM.State {
         id: clearState
 
-        initialState: accumulateState
+        initialState: operandState
 
         DSM.SignalTransition {
             signal: clearPressed
@@ -437,8 +425,23 @@ DSM.StateMachine {
         }
 
         DSM.State {
-            id: accumulateState
-            initialState: zeroState
+            id: errorState
+
+            onEntered: {
+                display = errorMessage;
+                noops = ["AddSub", "Equal", "Function", "MemoryUpdate", "MulDiv"];
+            }
+            onExited: {
+                var temp = key;
+                reset();
+                key = temp;
+            }
+        }
+
+        DSM.State {
+            id: operandState
+
+            initialState: accumulateState
 
             onEntered: {
                 display = Qt.binding(show);
@@ -463,7 +466,7 @@ DSM.StateMachine {
             }
             DSM.SignalTransition {
                 signal: functionPressed
-                onTriggered: applyMathFunction();
+                targetState: functionState
             }
             DSM.SignalTransition {
                 signal: memoryUpdatePressed
@@ -477,54 +480,86 @@ DSM.StateMachine {
             }
 
             DSM.State {
-                id: digitState
-                property var noops: ["Equal"]
-                onEntered: {
-                    operandBuffer = (operandBuffer === "0") ? "" : operandBuffer;
-                    accumulate();
-                    if (!operator1) {
-                        noopGroups.add(noops);
+                id: accumulateState
+
+                initialState: zeroState
+
+                DSM.State {
+                    id: digitState
+                    onEntered: {
+                        operandBuffer = (operandBuffer === "0") ? "" : operandBuffer;
+                        accumulate();
+                        noops = (operator1) ? [] : ["Equal"];
                     }
-//                    noopKeys = (operator1) ? [] : groupKeysMap["Equal"];
+                    DSM.SignalTransition {
+                        signal: digitPressed
+                        onTriggered: accumulate();
+                    }
+                    DSM.SignalTransition {
+                        signal: zeroPressed
+                        onTriggered: accumulate();
+                    }
                 }
-                onExited: {
-                    noopGroups.remove(noops);
+
+                DSM.State {
+                    id: pointState
+                    onEntered: {
+                        operandBuffer = (operandBuffer === "") ? "0" : operandBuffer;
+                        accumulate();
+                        noops = (operator1) ? ["Point"] : ["Equal", "Point"];
+                    }
+                    DSM.SignalTransition {
+                        signal: digitPressed
+                        onTriggered: accumulate();
+                    }
+                    DSM.SignalTransition {
+                        signal: pointPressed
+                    }
+                    DSM.SignalTransition {
+                        signal: zeroPressed
+                        onTriggered: accumulate();
+                    }
+                }
+
+                DSM.State {
+                    id: zeroState
+                    onEntered: {
+                        accumulate();
+                        noops = (operator1) ? ["Zero"] : ["Equal", "Zero"];
+                    }
+                    DSM.SignalTransition {
+                        signal: zeroPressed
+                    }
+                }
+            }
+
+            DSM.State {
+                id: functionState
+
+                onEntered: {
+                    applyMathFunction();
+                    noops = [];
                 }
 
                 DSM.SignalTransition {
-                    signal: digitPressed
-                    onTriggered: accumulate();
-                }
-                DSM.SignalTransition {
-                    signal: zeroPressed
-                    onTriggered: accumulate();
+                    signal: functionPressed
+                    onTriggered: applyMathFunction();
                 }
             }
 
             DSM.State {
                 id: memoryState
-                DSM.SignalTransition {
-                    signal: digitPressed
-                    targetState: digitState
-                    onTriggered: clearOperandBuffer();
-                }
-                DSM.SignalTransition {
-                    signal: pointPressed
-                    targetState: pointState
-                    onTriggered: clearOperandBuffer();
-                }
-                DSM.SignalTransition {
-                    signal: zeroPressed
-                    targetState: zeroState;
-                    onTriggered: clearOperandBuffer();
-                }
+
+//                initialState: memoryRecallState
 
                 DSM.State {
                     id: memoryRecallState
                     onEntered: {
                         memory.recall();
-                        noopKeys = groupKeysMap["MemoryRecall"];
+                        memory.recalled = true;
+                        noops = ["MemoryRecall"];
                     }
+                    onExited: memory.recalled = false;
                     DSM.SignalTransition {
                         signal: memoryRecallPressed
                     }
@@ -532,66 +567,12 @@ DSM.StateMachine {
 
                 DSM.State {
                     id: memoryUpdateState
+                    onEntered: noops = [];
                     DSM.SignalTransition {
                         signal: memoryUpdatePressed
                         onTriggered: memory.update(operandBuffer);
                     }
                 }
-            }
-
-            DSM.State {
-                id: pointState
-                onEntered: {
-                    operandBuffer = (operandBuffer === "") ? "0" : operandBuffer;
-                    accumulate();
-                    noopKeys = groupKeysMap["Point"];
-                    if (!operator1) {
-                        noopKeys.concat(groupKeysMap["Equal"]);
-                    }
-                }
-                DSM.SignalTransition {
-                    signal: digitPressed
-                    onTriggered: accumulate();
-                }
-                DSM.SignalTransition {
-                    signal: pointPressed
-                }
-                DSM.SignalTransition {
-                    signal: zeroPressed
-                    onTriggered: accumulate();
-                }
-            }
-
-            DSM.State {
-                id: zeroState
-                onEntered: {
-                    accumulate();
-                    noopKeys = groupKeysMap["Zero"];
-                    if (!operator1) {
-                        noopKeys.concat(groupKeysMap["Equal"]);
-                    }
-                }
-                DSM.SignalTransition {
-                    signal: zeroPressed
-                }
-            }
-        }
-
-        DSM.State {
-            id: errorState
-
-            onEntered: {
-                display = errorMessage;
-                noopKeys = [].concat(groupKeysMap["AddSub"],
-                                     groupKeysMap["Equal"],
-                                     groupKeysMap["Function"],
-                                     groupKeysMap["MemoryUpdate"],
-                                     groupKeysMap["MulDiv"]);
-            }
-            onExited: {
-                var temp = key;
-                reset();
-                key = temp;
             }
         }
 
@@ -601,8 +582,7 @@ DSM.StateMachine {
             onEntered: {
                 display = Qt.binding(show);
                 updateOperator();
-                noopKeys = [].concat(groupKeysMap["Function"],
-                                     groupKeysMap["MemoryUpdate"]);
+                noops = ["Function", "MemoryUpdate"];
             }
 
             onExited: clear();
@@ -644,8 +624,7 @@ DSM.StateMachine {
                 display = Qt.binding(show);
                 lastOperator = operator1;
                 update();
-                noopKeys = (sm.config.equalKeyRepeatsLastOperation) ?
-                            [] : groupKeysMap["Equal"];
+                noops = (sm.config.equalKeyRepeatsLastOperation) ? [] : ["Equal"];
             }
 
             onExited: clear();
