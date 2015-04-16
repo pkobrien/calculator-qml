@@ -436,7 +436,7 @@ DSM.StateMachine {
                 reset();
                 key = temp;
             }
-        }
+        } // End of errorState
 
         DSM.State {
             id: operandState
@@ -471,7 +471,6 @@ DSM.StateMachine {
             DSM.SignalTransition {
                 signal: memoryUpdatePressed
                 targetState: memoryUpdateState
-                onTriggered: memory.update(operandBuffer);
             }
             DSM.SignalTransition {
                 signal: mulDivPressed
@@ -484,20 +483,21 @@ DSM.StateMachine {
 
                 initialState: zeroState
 
+                DSM.SignalTransition {
+                    signal: digitPressed
+                    onTriggered: accumulate();
+                }
+                DSM.SignalTransition {
+                    signal: zeroPressed
+                    onTriggered: accumulate();
+                }
+
                 DSM.State {
                     id: digitState
                     onEntered: {
                         operandBuffer = (operandBuffer === "0") ? "" : operandBuffer;
                         accumulate();
                         noops = (operator1) ? [] : ["Equal"];
-                    }
-                    DSM.SignalTransition {
-                        signal: digitPressed
-                        onTriggered: accumulate();
-                    }
-                    DSM.SignalTransition {
-                        signal: zeroPressed
-                        onTriggered: accumulate();
                     }
                 }
 
@@ -509,15 +509,7 @@ DSM.StateMachine {
                         noops = (operator1) ? ["Point"] : ["Equal", "Point"];
                     }
                     DSM.SignalTransition {
-                        signal: digitPressed
-                        onTriggered: accumulate();
-                    }
-                    DSM.SignalTransition {
                         signal: pointPressed
-                    }
-                    DSM.SignalTransition {
-                        signal: zeroPressed
-                        onTriggered: accumulate();
                     }
                 }
 
@@ -528,19 +520,21 @@ DSM.StateMachine {
                         noops = (operator1) ? ["Zero"] : ["Equal", "Zero"];
                     }
                     DSM.SignalTransition {
+                        signal: digitPressed
+                        targetState: digitState
+                    }
+                    DSM.SignalTransition {
                         signal: zeroPressed
                     }
                 }
-            }
+            } // End of accumulateState
 
             DSM.State {
                 id: functionState
-
                 onEntered: {
                     applyMathFunction();
                     noops = [];
                 }
-
                 DSM.SignalTransition {
                     signal: functionPressed
                     onTriggered: applyMathFunction();
@@ -548,33 +542,30 @@ DSM.StateMachine {
             }
 
             DSM.State {
-                id: memoryState
-
-//                initialState: memoryRecallState
-
-                DSM.State {
-                    id: memoryRecallState
-                    onEntered: {
-                        memory.recall();
-                        memory.recalled = true;
-                        noops = ["MemoryRecall"];
-                    }
-                    onExited: memory.recalled = false;
-                    DSM.SignalTransition {
-                        signal: memoryRecallPressed
-                    }
+                id: memoryRecallState
+                onEntered: {
+                    memory.recall();
+                    memory.recalled = true;
+                    noops = ["MemoryRecall"];
                 }
-
-                DSM.State {
-                    id: memoryUpdateState
-                    onEntered: noops = [];
-                    DSM.SignalTransition {
-                        signal: memoryUpdatePressed
-                        onTriggered: memory.update(operandBuffer);
-                    }
+                onExited: memory.recalled = false;
+                DSM.SignalTransition {
+                    signal: memoryRecallPressed
                 }
             }
-        }
+
+            DSM.State {
+                id: memoryUpdateState
+                onEntered: {
+                    memory.update(operandBuffer);
+                    noops = [];
+                }
+                DSM.SignalTransition {
+                    signal: memoryUpdatePressed
+                    onTriggered: memory.update(operandBuffer);
+                }
+            }
+        } // End of operandState
 
         DSM.State {
             id: operatorState
@@ -613,7 +604,7 @@ DSM.StateMachine {
                 signal: mulDivPressed
                 onTriggered: updateOperator();
             }
-        }
+        } // End of operatorState
 
         DSM.State {
             id: resultState
@@ -679,6 +670,6 @@ DSM.StateMachine {
                 targetState: operatorState
                 onTriggered: expressionBuilder.push(calculationResult);
             }
-        }
-    }
+        } // End of resultState
+    } // End of clearState
 }
