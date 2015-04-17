@@ -26,6 +26,7 @@ DSM.StateMachine {
     property string expression: expressionBuilder.text
     property string key
     property string memoryText: memory.text
+    property double operand
     property string operandBuffer
     property double operand1
     property double operand2
@@ -61,101 +62,93 @@ DSM.StateMachine {
 
     function applyMathFunction() {
         expressionBuilder.push("%1(%2)".arg(key).arg(expressionBuilder.pop()));
-        var num = Number(operandBuffer);
-        validate(num);
+        operand = Number(operandBuffer);
         var mathFunction
         switch (key) {
             default:
                 mathFunction = Math[key];
                 break;
             case "sqr":
-                mathFunction = function() { return num * num };
+                mathFunction = function() { return operand * operand };
                 break;
         }
-        var newValue = mathFunction(num);
-        validate(newValue);
-        operandBuffer = stringify(newValue);
+        operand = mathFunction(operand);
+        operandBuffer = stringify(operand);
         if (!operator1) {
-            operand1 = newValue;
-            calculationResult = newValue;
+            operand1 = operand;
+            calculationResult = operand;
         }
     }
 
     function calculateAll(updateExpression) {
-        var num = Number(operandBuffer);
-        validate(num);
+        operand = Number(operandBuffer);
         if (operator2) {
             switch (operator2) {
                 case "*":
-                    num *= operand2;
+                    operand = operand2 * operand;
                     break;
                 case "/":
-                    num = operand2 / num;
+                    operand = operand2 / operand;
                     break;
             }
-            validate(num);
-            operandBuffer = stringify(num);
+            operandBuffer = stringify(operand);
             operand2 = 0.00;
             operator2 = "";
         }
         if (operator1) {
             switch (operator1) {
                 case "+":
-                    operand1 += num;
+                    operand1 += operand;
                     break;
                 case "-":
-                    operand1 -= num;
+                    operand1 -= operand;
                     break;
                 case "*":
-                    operand1 *= num;
+                    operand1 *= operand;
                     break;
                 case "/":
-                    operand1 /= num;
+                    operand1 /= operand;
                     break;
             }
             operator1 = "";
         } else {
-            operand1 = num;
+            operand1 = operand;
         }
         if (updateExpression) {
             expressionBuilder.push("=");
             expressionBuilder.push(operand1);
         }
         calculationResult = operand1;
-        validate(calculationResult);
     }
 
     function calculateLast() {
-        var num = Number(operandBuffer);
-        validate(num);
+        operand = Number(operandBuffer);
         if (operator2) {
             switch (operator2) {
                 case "*":
-                    operand2 *= num;
+                    operand2 *= operand;
                     break;
                 case "/":
-                    operand2 /= num;
+                    operand2 /= operand;
                     break;
             }
-            validate(operand2);
             operator2 = "";
         } else if (operator1) {
             switch (operator1) {
                 case "*":
-                    operand1 *= num;
+                    operand1 *= operand;
                     operator1 = "";
                     break;
                 case "/":
-                    operand1 /= num;
+                    operand1 /= operand;
                     operator1 = "";
                     break;
                 case "+": case "-":
-                    operand2 = num;
+                    operand2 = operand;
                     break;
             }
-            validate(operand1);
         } else {
-            operand1 = num;
+            operand1 = operand;
         }
     }
 
@@ -177,6 +170,7 @@ DSM.StateMachine {
         expressionBuilder.reset();
         key = "0";
         keyInfo.reset();
+        operand = 0.0;
         operandBuffer = "";
         operand1 = 0.0;
         operand2 = 0.0;
@@ -225,7 +219,15 @@ DSM.StateMachine {
         return (newValue.indexOf(".") === -1) ? newValue + "." : newValue;
     }
 
+    onCalculationResultChanged: validate(calculationResult);
+
     onError: expressionBuilder.errorMode = true;
+
+    onOperandChanged: validate(operand);
+
+    onOperand1Changed: validate(operand1);
+
+    onOperand2Changed: validate(operand2);
 
     onStopped: reset();
 
