@@ -10,8 +10,7 @@ App.KeyForm {
     fontSize: dp(20)
 
     property var engine
-    property bool noop: engine.noop(value)
-    property bool operable: supported && !noop
+    property bool operable: supported && !engine.noop(value)
     property bool supported
     property string value
 

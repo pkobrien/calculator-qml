@@ -13,17 +13,17 @@ QtObject {
     readonly property string memory: __sm.memoryText
     readonly property string result: __sm.calculationResultText
 
+    readonly property var noop: __sm.noop
+    readonly property var process: __sm.process
+    readonly property var supports: __sm.supports
+
     readonly property bool running: __sm.running
 
-    readonly property var process: __sm.process
     readonly property var start: __sm.start
     readonly property var stop: __sm.stop
 
     readonly property var started: __sm.started
     readonly property var stopped: __sm.stopped
-
-    readonly property var noop: __sm.noop
-    readonly property var supports: __sm.supports
 
     // Private Internals
 

@@ -22,12 +22,13 @@ Rectangle {
 
         GridLayout {
 
-            columns: 4
+            columns: 5
             columnSpacing: dp(2)
             rowSpacing: dp(2)
 
             Repeater {
-                model: ["Sqr", "Sqrt", "Acos", "Asin", "Atan", "Cos", "Exp", "Log"]
+                model: ["Sqr", "Exp", "Acos", "Asin", "Atan",
+                        "Sqrt", "Log", "Cos", "Sin", "Tan"]
 
                 App.Key {
                     enabled: (keypad.enableNoopKeys || operable)
@@ -50,7 +51,10 @@ Rectangle {
                 rowSpacing: dp(2)
 
                 Repeater {
-                    model: ["MC", "Up", "MR", "+/-", "M-", "CE", "M+", "C"]
+                    model: ["MC", "MS",
+                            "MR", "+/-",
+                            "M-", "CE",
+                            "M+", "C"]
 
                     App.Key {
                         enabled: (keypad.enableNoopKeys || operable)
@@ -68,7 +72,10 @@ Rectangle {
                 rowSpacing: dp(2)
 
                 Repeater {
-                    model: ["7", "8", "9", "4", "5", "6", "1", "2", "3", "0", "."]
+                    model: ["7", "8", "9",
+                            "4", "5", "6",
+                            "1", "2", "3",
+                            "0", "."]
 
                     App.Key {
                         enabled: (keypad.enableNoopKeys || operable)

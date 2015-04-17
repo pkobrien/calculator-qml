@@ -187,6 +187,13 @@ Item {
             util.calculate_and_compare(engine, data);
         }
 
+        function test_division() {
+            var data = [ // keys, expression, display, result // index
+                ["1 + 6 / 2 =", "1 + 6 / 2 = 4", "4.", "4"], // 0
+            ];
+            util.calculate_and_compare(engine, data);
+        }
+
         function test_clear() {
             var data = [ // keys, expression, display, result // index
                 ["0", "0", "0.", "0"], // 0
@@ -206,6 +213,8 @@ Item {
         function test_error_divide_by_zero() {
             var data = [ // keys, expression, display, result // index
                 ["1 / 0 =", "1 / 0 = Infinity", "ERROR", "Infinity"], // 0
+                ["c 1 + 2 / 0 =", "1 + 2 / 0 = Infinity", "ERROR", "Infinity"], // 1
+                ["c 1 + 2 / 0 +", "1 + 2 / 0 +", "ERROR", "Infinity"], // 2
             ];
             util.calculate_and_compare(engine, data);
         }
