@@ -1,18 +1,6 @@
 import QtQuick 2.4
 import QtQml.StateMachine 1.0 as DSM
 
-/* TODO
-
-Currently infix. Should also support postfix (RPN). And maybe Tenkey.
-
-"00" and "000" keys for entering large numbers.
-
-C or AC	All Clear
-CE	Clear (last) Entry; sometimes called CE/C:
-    a first press clears the last entry (CE), a second press clears all (C)
-
-*/
-
 DSM.StateMachine {
     id: sm
 
@@ -41,6 +29,7 @@ DSM.StateMachine {
 
     signal addSubPressed()
     signal clearPressed()
+    signal clearEntryPressed()
     signal digitPressed()
     signal equalPressed()
     signal error()
@@ -267,6 +256,7 @@ DSM.StateMachine {
         property var masterList: [
             {group: "AddSub", signal: addSubPressed, keys: ["+", "-"]},
             {group: "Clear", signal: clearPressed, keys: ["c"]},
+            {group: "ClearEntry", signal: clearEntryPressed, keys: ["ce"]},
             {group: "Digit", signal: digitPressed,
                 keys: ["1", "2", "3", "4", "5", "6", "7", "8", "9"]},
             {group: "Equal", signal: equalPressed, keys: ["="]},
@@ -314,7 +304,7 @@ DSM.StateMachine {
             }
             var i;
             var key;
-            var memKeys;
+            var specialKeys;
             var qml = "import QtQuick 2.4;" +
                       "QtObject { property bool noop: false;" +
                                  "property var signal }"
@@ -327,18 +317,23 @@ DSM.StateMachine {
                     keyMap[key].signal = obj.signal;
                 }
             }
-            memKeys = groupMap["MemoryClear"];
-            for (i = 0; i < memKeys.length; i++) {
-                key = memKeys[i];
-                keyMap[key].noop = Qt.binding(function()
-                                              { return !memory.active; });
+            specialKeys = groupMap["ClearEntry"];
+            for (i = 0; i < specialKeys.length; i++) {
+                key = specialKeys[i];
+                keyMap[key].noop = Qt.binding(
+                    function() { return (!operandBuffer.clearable); });
             }
-            memKeys = groupMap["MemoryRecall"];
-            for (i = 0; i < memKeys.length; i++) {
-                key = memKeys[i];
-                keyMap[key].noop = Qt.binding(function()
-                                              { return !memory.active
-                                                || memory.recalled; });
+            specialKeys = groupMap["MemoryClear"];
+            for (i = 0; i < specialKeys.length; i++) {
+                key = specialKeys[i];
+                keyMap[key].noop = Qt.binding(
+                    function() { return (!memory.active); });
+            }
+            specialKeys = groupMap["MemoryRecall"];
+            for (i = 0; i < specialKeys.length; i++) {
+                key = specialKeys[i];
+                keyMap[key].noop = Qt.binding(
+                    function() { return (!memory.active || memory.recalled); });
             }
             __setup = true;
         }
@@ -355,14 +350,15 @@ DSM.StateMachine {
         }
 
         onNoopsChanged: {
-            var memKeys = groupMap["MemoryClear"].concat(
-                          groupMap["MemoryRecall"]);
+            var specialKeys = groupMap["ClearEntry"].concat(
+                              groupMap["MemoryClear"]).concat(
+                              groupMap["MemoryRecall"]);
             var noopKeys = [];
             for (var i = 0; i < noops.length; i++) {
                 noopKeys = noopKeys.concat(groupMap[noops[i]]);
             }
             for (var key in keyMap) {
-                if (memKeys.indexOf(key) !== -1) {
+                if (specialKeys.indexOf(key) !== -1) {
                     continue;
                 }
                 keyMap[key].noop = (noopKeys.indexOf(key) !== -1);
@@ -406,6 +402,7 @@ DSM.StateMachine {
     QtObject {
         id: operandBuffer
 
+        property bool clearable: (text !== "" && text !== "0")
         property string text: ""
 
         function accumulate() {
@@ -417,6 +414,11 @@ DSM.StateMachine {
         function clear() {
             expressionBuilder.pop();
             reset();
+        }
+
+        function clearEntry() {
+            clear();
+            sm.key = "0";
         }
 
         function replace(value) {
@@ -466,6 +468,12 @@ DSM.StateMachine {
             signal: clearPressed
             targetState: clearState
             onTriggered: reset();
+        }
+        DSM.SignalTransition {
+            signal: clearEntryPressed
+            guard: (operandBuffer.clearable)
+            targetState: zeroState
+            onTriggered: operandBuffer.clearEntry();
         }
         DSM.SignalTransition {
             signal: error
@@ -667,6 +675,7 @@ DSM.StateMachine {
 
                 onEntered: {
                     display = errorMessage;
+                    operandBuffer.reset();
                     keyInfo.update(false, ["AddSub", "Function",
                                            "MemoryUpdate", "MulDiv", "Sign"]);
                 }
@@ -684,20 +693,18 @@ DSM.StateMachine {
             DSM.State {
                 id: operatorState
 
+                property string lastOperand
+
                 onEntered: {
+                    lastOperand = operandBuffer.text
                     display = Qt.binding(show);
+                    operandBuffer.reset();
                     updateOperator();
                     keyInfo.update(true, ["Function", "MemoryUpdate", "Sign"]);
                 }
 
-                onExited: clear();
-
-                function clear() {
-                    operandBuffer.reset();
-                }
-
                 function show() {
-                    var value = (operator2) ? operandBuffer.text : operand1;
+                    var value = (operator2) ? lastOperand : operand1;
                     return withTrailingPoint(value);
                 }
 
