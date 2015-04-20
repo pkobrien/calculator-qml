@@ -10,7 +10,6 @@ Currently infix. Should also support postfix (RPN). And maybe Tenkey.
 C or AC	All Clear
 CE	Clear (last) Entry; sometimes called CE/C:
     a first press clears the last entry (CE), a second press clears all (C)
-±	Toggle positive/negative number
 
 */
 
@@ -51,6 +50,7 @@ DSM.StateMachine {
     signal memoryUpdatePressed()
     signal mulDivPressed()
     signal pointPressed()
+    signal signPressed()
     signal zeroPressed()
 
     function applyMathFunction() {
@@ -281,6 +281,7 @@ DSM.StateMachine {
                 keys: ["m+", "m-", "ms", "sm"]},
             {group: "MulDiv", signal: mulDivPressed, keys: ["*", "/"]},
             {group: "Point", signal: pointPressed, keys: ["."]},
+            {group: "Sign", signal: signPressed, keys: ["+/-", "±"]},
             {group: "Zero", signal: zeroPressed, keys: ["0"]},
         ]
 
@@ -347,6 +348,10 @@ DSM.StateMachine {
             // before Component.onCompleted() takes place, unfortunately.
             setup();
             return (uiKey.toLowerCase() in keyMap);
+        }
+
+        function update(equalCheck, groups) {
+            noops = (equalCheck) ? groups : groups.concat(["Equal"]);
         }
 
         onNoopsChanged: {
@@ -429,9 +434,16 @@ DSM.StateMachine {
         }
 
         function swap(target, replacement) {
-            if (text === target) {
-                text = replacement;
-            }
+            var signed = (text.charAt(0) === "-");
+            text = (signed) ? text.slice(1) : text;
+            text = (text === target) ? replacement : text;
+            text = (signed) ? "-" + text : text;
+        }
+
+        function toggleSign() {
+            text = (text.charAt(0) === "-") ? text.slice(1) : "-" + text;
+            expressionBuilder.pop();
+            expressionBuilder.push(text);
         }
 
         function toNumber() {
@@ -468,6 +480,11 @@ DSM.StateMachine {
             signal: memoryRecallPressed
             guard: (memory.active)
             targetState: memoryRecallState
+        }
+        DSM.SignalTransition {
+            signal: signPressed
+            guard: (operandBuffer.text !== "")
+            onTriggered: operandBuffer.toggleSign();
         }
 
         DSM.State {
@@ -529,7 +546,7 @@ DSM.StateMachine {
                     onEntered: {
                         operandBuffer.swap("0", "");
                         operandBuffer.accumulate();
-                        keyInfo.noops = (operator1) ? [] : ["Equal"];
+                        keyInfo.update(operator1, []);
                     }
                 }
 
@@ -538,8 +555,7 @@ DSM.StateMachine {
                     onEntered: {
                         operandBuffer.swap("", "0");
                         operandBuffer.accumulate();
-                        keyInfo.noops = (operator1) ?
-                                        ["Point"] : ["Equal", "Point"];
+                        keyInfo.update(operator1, ["Point"]);
                     }
                     DSM.SignalTransition {
                         signal: pointPressed
@@ -550,8 +566,7 @@ DSM.StateMachine {
                     id: zeroState
                     onEntered: {
                         operandBuffer.accumulate();
-                        keyInfo.noops = (operator1) ?
-                                        ["Zero"] : ["Equal", "Zero"];
+                        keyInfo.update(operator1, ["Zero"]);
                     }
                     DSM.SignalTransition {
                         signal: digitPressed
@@ -586,7 +601,7 @@ DSM.StateMachine {
                     id: functionState
                     onEntered: {
                         applyMathFunction();
-                        keyInfo.noops = [];
+                        keyInfo.update(operator1, []);
                     }
                     DSM.SignalTransition {
                         signal: functionPressed
@@ -599,7 +614,7 @@ DSM.StateMachine {
                     onEntered: {
                         memory.recall();
                         memory.recalled = true;
-                        keyInfo.noops = ["MemoryRecall"];
+                        keyInfo.update(operator1, ["MemoryRecall"]);
                     }
                     onExited: memory.recalled = false;
                     DSM.SignalTransition {
@@ -611,11 +626,18 @@ DSM.StateMachine {
                     id: memoryUpdateState
                     onEntered: {
                         memory.update(operandBuffer.toNumber());
-                        keyInfo.noops = [];
+                        keyInfo.update(operator1, []);
                     }
                     DSM.SignalTransition {
                         signal: memoryUpdatePressed
                         onTriggered: memory.update(operandBuffer.toNumber());
+                    }
+                }
+
+                DSM.State {
+                    id: signState
+                    onEntered: {
+                        keyInfo.update(operator1, []);
                     }
                 }
             } // End of manipulateState
@@ -633,6 +655,9 @@ DSM.StateMachine {
                 targetState: pointState
             }
             DSM.SignalTransition {
+                signal: signPressed
+            }
+            DSM.SignalTransition {
                 signal: zeroPressed
                 targetState: zeroState
             }
@@ -642,8 +667,8 @@ DSM.StateMachine {
 
                 onEntered: {
                     display = errorMessage;
-                    keyInfo.noops = ["AddSub", "Equal", "Function",
-                                     "MemoryUpdate", "MulDiv"];
+                    keyInfo.update(false, ["AddSub", "Function",
+                                           "MemoryUpdate", "MulDiv", "Sign"]);
                 }
                 onExited: {
                     var temp = key;
@@ -662,7 +687,7 @@ DSM.StateMachine {
                 onEntered: {
                     display = Qt.binding(show);
                     updateOperator();
-                    keyInfo.noops = ["Function", "MemoryUpdate"];
+                    keyInfo.update(true, ["Function", "MemoryUpdate", "Sign"]);
                 }
 
                 onExited: clear();
@@ -704,17 +729,15 @@ DSM.StateMachine {
                     display = Qt.binding(show);
                     lastOperator = operator1;
                     update();
-                    keyInfo.noops = (config.equalKeyRepeatsLastOperation) ?
-                                    [] : ["Equal"];
+                    keyInfo.update(config.equalKeyRepeatsLastOperation, []);
                 }
 
                 onExited: clear();
 
                 function clear() {
                     lastOperator = "";
-                    operandBuffer.reset();
-                    operator1 = "";
                     expressionBuilder.clear();
+                    operandBuffer.reset();
                 }
 
                 function show() {
@@ -742,23 +765,33 @@ DSM.StateMachine {
                 }
                 DSM.SignalTransition {
                     signal: functionPressed
+                    targetState: functionState
                     onTriggered: {
-                        resultState.clear();
-                        operandBuffer.update(calculationResult);
                         expressionBuilder.push(calculationResult);
-                        applyMathFunction();
+                        operandBuffer.update(calculationResult);
                     }
                 }
                 DSM.SignalTransition {
                     signal: memoryUpdatePressed
+                    targetState: memoryUpdateState
                     onTriggered: {
-                        memory.update(calculationResult);
+                        expressionBuilder.push(calculationResult);
+                        operandBuffer.update(calculationResult);
                     }
                 }
                 DSM.SignalTransition {
                     signal: mulDivPressed
                     targetState: operatorState
                     onTriggered: expressionBuilder.push(calculationResult);
+                }
+                DSM.SignalTransition {
+                    signal: signPressed
+                    targetState: signState
+                    onTriggered: {
+                        expressionBuilder.push(calculationResult);
+                        operandBuffer.update(calculationResult);
+                        operandBuffer.toggleSign();
+                    }
                 }
             } // End of resultState
         } // End of operationState
