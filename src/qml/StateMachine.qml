@@ -109,6 +109,7 @@ DSM.StateMachine {
                     break;
             }
         } else {
+            operands.pop();
             operand = operandBuffer.number;
         }
         operands.push(operand);
