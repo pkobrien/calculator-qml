@@ -14,6 +14,7 @@ DSM.StateMachine {
     property string key
     property string memoryText: memory.text
 
+    property double operand
     property var operands: []
     property var operators: []
 
@@ -40,9 +41,19 @@ DSM.StateMachine {
     signal signPressed()
     signal zeroPressed()
 
+    onCalculationResultChanged: validate(calculationResult);
+
+    onError: expressionBuilder.errorMode = true;
+
+    onOperandChanged: validate(operand);
+
+    onStopped: reset();
+
+    Component.onCompleted: reset();
+
     function applyMathFunction() {
         expressionBuilder.push("%1(%2)".arg(key).arg(expressionBuilder.pop()));
-        var operand = operandBuffer.number;
+        operand = operandBuffer.number;
         var mathFunction
         switch (key) {
             default:
@@ -54,15 +65,15 @@ DSM.StateMachine {
         }
         operand = mathFunction(operand);
         operandBuffer.update(operand);
-        if (operators.length === 0) {
-            operands[0] = operand;
+        if (!operators.length) {
+            operands.pop();
+            operands.push(operand);
             calculationResult = operand;
         }
     }
 
     function calculateAll(updateExpression) {
         var num = operandBuffer.number;
-        var operand;
         var operator;
         if (operators.length === 2) {
             operand = operands.pop();
@@ -75,8 +86,10 @@ DSM.StateMachine {
                     operand /= num;
                     break;
             }
-            operandBuffer.update(operand);
             num = operand;
+            if (config.equalKeyRepeatsLastOperation) {
+                operandBuffer.update(operand);
+            }
         }
         if (operators.length === 1) {
             operand = operands.pop();
@@ -107,11 +120,11 @@ DSM.StateMachine {
     }
 
     function calculateLast() {
-        var operand;
-        var operator;
-        if (operators.length === 2) {
+        if (!operands.length) {
+            operand = operandBuffer.number;
+        } else {
             operand = operands.pop();
-            operator = operators.pop();
+            var operator = operators.pop();
             switch (operator) {
                 case "*":
                     operand *= operandBuffer.number;
@@ -119,25 +132,14 @@ DSM.StateMachine {
                 case "/":
                     operand /= operandBuffer.number;
                     break;
-            }
-            operands.push(operand);
-        } else if (operators.length === 1) {
-            operator = operators.pop();
-            switch (operator) {
-                case "*":
-                    operands[0] *= operandBuffer.number;
-                    break;
-                case "/":
-                    operands[0] /= operandBuffer.number;
-                    break;
                 case "+": case "-":
-                    operands.push(operandBuffer.number);
+                    operands.push(operand);
                     operators.push(operator);
+                    operand = operandBuffer.number;
                     break;
             }
-        } else {
-            operands[0] = operandBuffer.number;
         }
+        operands.push(operand);
     }
 
     function reset() {
@@ -173,6 +175,7 @@ DSM.StateMachine {
         }
         operators.push(key);
         expressionBuilder.push(key);
+        operators = operators;  // To trigger any bindings to this list.
     }
 
     function validate(num) {
@@ -185,18 +188,6 @@ DSM.StateMachine {
         var newValue = stringify(value);
         return (newValue.indexOf(".") === -1) ? newValue + "." : newValue;
     }
-
-    onCalculationResultChanged: validate(calculationResult);
-
-    onError: expressionBuilder.errorMode = true;
-
-//    onOperand1Changed: validate(operand1);
-
-//    onOperand2Changed: validate(operand2);
-
-    onStopped: reset();
-
-    Component.onCompleted: reset();
 
     QtObject {
         id: config
@@ -273,6 +264,22 @@ DSM.StateMachine {
 
         property bool __setup: false
 
+        onNoopsChanged: {
+            var specialKeys = groupMap["ClearEntry"].concat(
+                              groupMap["MemoryClear"]).concat(
+                              groupMap["MemoryRecall"]);
+            var noopKeys = [];
+            for (var i = 0; i < noops.length; i++) {
+                noopKeys = noopKeys.concat(groupMap[noops[i]]);
+            }
+            for (var key in keyMap) {
+                if (specialKeys.indexOf(key) !== -1) {
+                    continue;
+                }
+                keyMap[key].noop = (noopKeys.indexOf(key) !== -1);
+            }
+        }
+
         function noop(uiKey) {
             return (supports(uiKey)) ? keyMap[uiKey.toLowerCase()].noop : true;
         }
@@ -341,22 +348,6 @@ DSM.StateMachine {
 
         function update(equalCheck, groups) {
             noops = (equalCheck) ? groups : groups.concat(["Equal"]);
-        }
-
-        onNoopsChanged: {
-            var specialKeys = groupMap["ClearEntry"].concat(
-                              groupMap["MemoryClear"]).concat(
-                              groupMap["MemoryRecall"]);
-            var noopKeys = [];
-            for (var i = 0; i < noops.length; i++) {
-                noopKeys = noopKeys.concat(groupMap[noops[i]]);
-            }
-            for (var key in keyMap) {
-                if (specialKeys.indexOf(key) !== -1) {
-                    continue;
-                }
-                keyMap[key].noop = (noopKeys.indexOf(key) !== -1);
-            }
         }
     }
 
@@ -697,7 +688,8 @@ DSM.StateMachine {
                 }
 
                 function show() {
-                    var value = (operator2) ? lastOperand : operand1;
+                    var value = (operators.length === 2) ?
+                                lastOperand : operands[0];
                     return withTrailingPoint(value);
                 }
 
@@ -709,9 +701,9 @@ DSM.StateMachine {
                     signal: equalPressed
                     targetState: resultState
                     onTriggered: {
-                        operandBuffer.update(operand1);
-                        operand2 = 0.00;
-                        operator2 = "";
+                        operandBuffer.update(operands[0]);
+//                        operand2 = 0.00;
+//                        operator2 = "";
                     }
                 }
                 DSM.SignalTransition {

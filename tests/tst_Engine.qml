@@ -10,7 +10,8 @@ Item {
         name: "shared-functions"
 
         function calculate_and_compare(engine, data) {
-            // data is an array of arrays with [keys, expression, display, result].
+            // data is an array of arrays with:
+            // [keys, expression, display, result]
             data.forEach(function(element, index) {
                 var keys = element[0];
                 var expression = element[1];
@@ -18,20 +19,22 @@ Item {
                 var result = element[3];
                 var msg = "data index " + index + "::";
                 process(engine, keys);
-                compare(engine.expression, expression, msg + "wrong engine.expression");
-                compare(engine.display, display, msg + "wrong engine.display");
-                compare(engine.result, result, msg + "wrong engine.result");
+                compare(engine.expression, expression,
+                        msg + "wrong engine.expression");
+                compare(engine.display, display,
+                        msg + "wrong engine.display");
+                compare(engine.result, result,
+                        msg + "wrong engine.result");
             });
         }
 
         function process(engine, keys) {
-            // keys can be a string, which will be split, or an array of strings.
+            // keys can be a string, which will be split,
+            // or an array of strings.
             if (typeof keys == "string") {
                 keys = keys.split(" ");
             }
-            keys.forEach(function(key, index) {
-                engine.process(key);
-            });
+            keys.forEach(function(key, index) { engine.process(key); });
         }
     }
 
@@ -215,6 +218,7 @@ Item {
                 ["1 / 0 =", "1 / 0 = Infinity", "ERROR", "Infinity"], // 0
                 ["c 1 + 2 / 0 =", "1 + 2 / 0 = Infinity", "ERROR", "Infinity"], // 1
                 ["c 1 + 2 / 0 +", "1 + 2 / 0 +", "ERROR", "Infinity"], // 2
+                ["c 1 + 2 / 0 *", "1 + 2 / 0 *", "ERROR", "1"], // 3
             ];
             util.calculate_and_compare(engine, data);
         }
@@ -269,6 +273,20 @@ Item {
                 ["sqrt", "sqrt(81)", "9.", "9"], // 1
                 ["sqrt", "sqrt(sqrt(81))", "3.", "3"], // 2
                 ["sqrt", "sqrt(sqrt(sqrt(81)))", "1.7320508075689", "1.7320508075689"], // 3
+            ];
+            util.calculate_and_compare(engine, data);
+        }
+
+        function test_operators() {
+            var data = [ // keys, expression, display, result // index
+                ["1", "1", "1.", "0"], // 0
+                ["+", "1 +", "1.", "1"], // 1
+                ["2", "1 + 2", "2.", "1"], // 2
+                ["*", "1 + 2 *", "2.", "1"], // 3
+                ["3", "1 + 2 * 3", "3.", "1"], // 4
+                ["*", "1 + 2 * 3 *", "3.", "1"], // 5
+                ["4", "1 + 2 * 3 * 4", "4.", "1"], // 6
+                ["=", "1 + 2 * 3 * 4 = 25", "25.", "25"], // 7
             ];
             util.calculate_and_compare(engine, data);
         }
