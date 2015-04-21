@@ -1,13 +1,14 @@
 import QtQuick 2.4
+import QtQuick.Controls 1.3
 import QtQuick.Window 2.2
-import Candy 1.0 as Candy
 import "." as App
 
-Candy.ApplicationWindow {
+ApplicationWindow {
     id: appWindow
 
+    property var dp: App.Units.dp
+
     title: qsTr("Calculator")
-    visible: true
 
     contentItem.implicitWidth: calculator.implicitWidth
     contentItem.implicitHeight: calculator.implicitHeight
@@ -19,9 +20,10 @@ Candy.ApplicationWindow {
     contentItem.minimumHeight: calculator.minimumHeight
 
     Component.onCompleted: {
-        Candy.Units.scaleFactor = 3.0;
-        App.Active.appWindow = appWindow;
-        App.Active.calculator = calculator;
+        App.Units.pixelDensity = Qt.binding(function()
+                                            { return Screen.pixelDensity; });
+        App.Units.scaleFactor = 3.0;
+        visible = true;
     }
 
     menuBar: App.MenuBar { }
