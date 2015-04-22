@@ -49,6 +49,8 @@ DSM.StateMachine {
 
     onStopped: reset();
 
+    onStarted: keyInfo.reset();
+
     Component.onCompleted: reset();
 
     function applyMathFunction() {
@@ -265,6 +267,21 @@ DSM.StateMachine {
 
         property bool __setup: false
 
+        property var states: [
+            // state, equalCheck (or null for the default), noop groups:
+            [digitState, null, []],
+            [errorState, false, ["AddSub", "Function",
+                                 "MemoryUpdate", "MulDiv", "Sign"]],
+            [functionState, null, []],
+            [memoryRecallState, null, ["MemoryRecall"]],
+            [memoryUpdateState, null, []],
+            [operatorState, true, ["Function", "MemoryUpdate", "Sign"]],
+            [pointState, null, ["Point"]],
+            [resultState, config.equalKeyRepeatsLastOperation, []],
+            [signState, null, []],
+            [zeroState, null, ["Zero"]],
+        ]
+
         onNoopsChanged: {
             var specialKeys = groupMap["ClearEntry"].concat(
                               groupMap["MemoryClear"]).concat(
@@ -281,6 +298,20 @@ DSM.StateMachine {
             }
         }
 
+        function currentNoops() {
+            for (var i = 0; i < states.length; i++) {
+                if (states[i][0].active) {
+                    var equalCheck = states[i][1];
+                    if (equalCheck === null) {
+                        equalCheck = operators.length; // Default.
+                    }
+                    var groups = states[i][2];
+                    return (equalCheck) ? groups : groups.concat(["Equal"]);
+                }
+            }
+            return [];
+        }
+
         function noop(uiKey) {
             return (supports(uiKey)) ? keyMap[uiKey.toLowerCase()].noop : true;
         }
@@ -291,13 +322,14 @@ DSM.StateMachine {
             if (sm.key in keyMap) {
                 accepted = true;
                 keyMap[sm.key].signal();
+                noops = currentNoops();
             }
             return accepted;
         }
 
         function reset() {
             setup();
-            noops = [];
+            noops = currentNoops();
         }
 
         function setup() {
@@ -345,10 +377,6 @@ DSM.StateMachine {
             // before Component.onCompleted() takes place, unfortunately.
             setup();
             return (uiKey.toLowerCase() in keyMap);
-        }
-
-        function update(equalCheck, groups) {
-            noops = (equalCheck) ? groups : groups.concat(["Equal"]);
         }
     }
 
@@ -539,7 +567,6 @@ DSM.StateMachine {
                     onEntered: {
                         operandBuffer.swap("0", "");
                         operandBuffer.accumulate();
-                        keyInfo.update(operators.length, []);
                     }
                 }
 
@@ -548,7 +575,6 @@ DSM.StateMachine {
                     onEntered: {
                         operandBuffer.swap("", "0");
                         operandBuffer.accumulate();
-                        keyInfo.update(operators.length, ["Point"]);
                     }
                     DSM.SignalTransition {
                         signal: pointPressed
@@ -559,7 +585,6 @@ DSM.StateMachine {
                     id: zeroState
                     onEntered: {
                         operandBuffer.accumulate();
-                        keyInfo.update(operators.length, ["Zero"]);
                     }
                     DSM.SignalTransition {
                         signal: digitPressed
@@ -594,7 +619,6 @@ DSM.StateMachine {
                     id: functionState
                     onEntered: {
                         applyMathFunction();
-                        keyInfo.update(operators.length, []);
                     }
                     DSM.SignalTransition {
                         signal: functionPressed
@@ -607,7 +631,6 @@ DSM.StateMachine {
                     onEntered: {
                         memory.recall();
                         memory.recalled = true;
-                        keyInfo.update(operators.length, ["MemoryRecall"]);
                     }
                     onExited: memory.recalled = false;
                     DSM.SignalTransition {
@@ -619,7 +642,6 @@ DSM.StateMachine {
                     id: memoryUpdateState
                     onEntered: {
                         memory.update(operandBuffer.number);
-                        keyInfo.update(operators.length, []);
                     }
                     DSM.SignalTransition {
                         signal: memoryUpdatePressed
@@ -629,9 +651,6 @@ DSM.StateMachine {
 
                 DSM.State {
                     id: signState
-                    onEntered: {
-                        keyInfo.update(operators.length, []);
-                    }
                 }
             } // End of manipulateState
         } // End of operandState
@@ -661,8 +680,6 @@ DSM.StateMachine {
                 onEntered: {
                     display = errorMessage;
                     operandBuffer.reset();
-                    keyInfo.update(false, ["AddSub", "Function",
-                                           "MemoryUpdate", "MulDiv", "Sign"]);
                 }
                 onExited: {
                     var temp = key;
@@ -685,7 +702,6 @@ DSM.StateMachine {
                     display = Qt.binding(show);
                     operandBuffer.reset();
                     updateOperator();
-                    keyInfo.update(true, ["Function", "MemoryUpdate", "Sign"]);
                 }
 
                 function show() {
@@ -722,7 +738,6 @@ DSM.StateMachine {
                     display = Qt.binding(show);
                     lastOperator = operators[0];
                     update();
-                    keyInfo.update(config.equalKeyRepeatsLastOperation, []);
                 }
 
                 onExited: clear();
