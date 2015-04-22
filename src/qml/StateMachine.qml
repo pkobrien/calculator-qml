@@ -374,7 +374,8 @@ DSM.StateMachine {
             for (i = 0; i < specialKeys.length; i++) {
                 key = specialKeys[i];
                 keyMap[key].noop = Qt.binding(
-                    function() { return (!memory.active || memory.recalled); });
+                    function() { return (!memory.active ||
+                                         memoryRecallState.active); });
             }
             __setup = true;
         }
@@ -391,7 +392,6 @@ DSM.StateMachine {
         id: memory
 
         property bool active: false
-        property bool recalled: false
         property string text: (!active) ? "" : sm.stringify(value)
         property double value: 0.0
 
@@ -637,9 +637,7 @@ DSM.StateMachine {
                     id: memoryRecallState
                     onEntered: {
                         memory.recall();
-                        memory.recalled = true;
                     }
-                    onExited: memory.recalled = false;
                     DSM.SignalTransition {
                         signal: memoryRecallPressed
                     }
@@ -688,6 +686,7 @@ DSM.StateMachine {
                     display = errorMessage;
                     operandBuffer.reset();
                 }
+
                 onExited: {
                     var temp = keyInfo.key;
                     reset();
