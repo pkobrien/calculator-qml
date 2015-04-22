@@ -11,7 +11,6 @@ DSM.StateMachine {
     property string display
     property string errorMessage
     property string expression: expressionBuilder.text
-    property string key
     property string memoryText: memory.text
 
     property double operand
@@ -50,14 +49,15 @@ DSM.StateMachine {
     Component.onCompleted: reset();
 
     function applyMathFunction() {
-        expressionBuilder.push("%1(%2)".arg(key).arg(expressionBuilder.pop()));
+        expressionBuilder.push("%1(%2)".arg(keyInfo.key).arg(
+                                   expressionBuilder.pop()));
         operand = operandBuffer.number;
         var mathFunction
-        switch (key) {
+        switch (keyInfo.key) {
             default:
-                mathFunction = Math[key];
+                mathFunction = Math[keyInfo.key];
                 break;
-            case "sqr":
+            case "sqr": // We have to create our own function for square.
                 mathFunction = function() { return operand * operand };
                 break;
         }
@@ -146,7 +146,6 @@ DSM.StateMachine {
         display = "";
         errorMessage = "ERROR";
         expressionBuilder.reset();
-        key = "0";
         keyInfo.reset();
         operandBuffer.reset();
         operands.length = 0;
@@ -172,8 +171,8 @@ DSM.StateMachine {
             operators.pop();
             expressionBuilder.pop();
         }
-        operators.push(key);
-        expressionBuilder.push(key);
+        operators.push(keyInfo.key);
+        expressionBuilder.push(keyInfo.key);
         operators = operators;  // To trigger any bindings to this list.
     }
 
@@ -240,6 +239,7 @@ DSM.StateMachine {
         id: keyInfo
 
         property var groupMap: ({})
+        property string key
         property var keyMap: ({})
 
         property var masterList: [
@@ -324,10 +324,10 @@ DSM.StateMachine {
 
         function process(uiKey) {
             var accepted = false;
-            sm.key = uiKey.toLowerCase();
-            if (sm.key in keyMap) {
+            key = uiKey.toLowerCase();
+            if (key in keyMap) {
                 accepted = true;
-                keyMap[sm.key].signal();
+                keyMap[key].signal();
                 noops = currentNoops();
             }
             return accepted;
@@ -335,6 +335,7 @@ DSM.StateMachine {
 
         function reset() {
             setup();
+            key = 0;
             noops = currentNoops();
         }
 
@@ -405,7 +406,7 @@ DSM.StateMachine {
 
         function update(num) {
             active = true;
-            switch (key) {
+            switch (keyInfo.key) {
                 case "ms": case "sm":
                     value = num;
                     break;
@@ -429,7 +430,7 @@ DSM.StateMachine {
         onNumberChanged: validate(number);
 
         function accumulate() {
-            text += sm.key;
+            text += keyInfo.key;
             expressionBuilder.pop();
             expressionBuilder.push(text.replace(sm.trailingPointRegExp, ""));
         }
@@ -441,7 +442,7 @@ DSM.StateMachine {
 
         function clearEntry() {
             clear();
-            sm.key = "0";
+            keyInfo.reset();
         }
 
         function replace(value) {
@@ -688,9 +689,9 @@ DSM.StateMachine {
                     operandBuffer.reset();
                 }
                 onExited: {
-                    var temp = key;
+                    var temp = keyInfo.key;
                     reset();
-                    key = temp;
+                    keyInfo.key = temp;
                 }
 
                 DSM.SignalTransition {
