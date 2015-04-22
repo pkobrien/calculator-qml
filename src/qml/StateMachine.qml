@@ -43,13 +43,9 @@ DSM.StateMachine {
 
     onCalculationResultChanged: validate(calculationResult);
 
-    onError: expressionBuilder.errorMode = true;
-
     onOperandChanged: validate(operand);
 
     onStopped: reset();
-
-    onStarted: keyInfo.reset();
 
     Component.onCompleted: reset();
 
@@ -207,6 +203,11 @@ DSM.StateMachine {
 
         property var __buffer: []
 
+        property Connections __connections: Connections {
+            target: sm
+            onError: expressionBuilder.errorMode = true;
+        }
+
         function clear() {
             if (!errorMode) {
                 __buffer.length = 0;
@@ -265,8 +266,6 @@ DSM.StateMachine {
 
         property var noops
 
-        property bool __setup: false
-
         property var states: [
             // state, equalCheck (or null for the default), noop groups:
             [digitState, null, []],
@@ -281,6 +280,13 @@ DSM.StateMachine {
             [signState, null, []],
             [zeroState, null, ["Zero"]],
         ]
+
+        property Connections __connections: Connections {
+            target: sm
+            onStarted: keyInfo.reset();
+        }
+
+        property bool __setup: false
 
         onNoopsChanged: {
             var specialKeys = groupMap["ClearEntry"].concat(
