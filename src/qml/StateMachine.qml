@@ -1,5 +1,6 @@
 import QtQuick 2.4
 import QtQml.StateMachine 1.0 as DSM
+import "." as App
 
 DSM.StateMachine {
     id: sm
@@ -7,7 +8,7 @@ DSM.StateMachine {
     property alias config: config
 
     property double calculationResult
-    property string calculationResultText: stringify(calculationResult)
+    property string calculationResultText: App.Util.stringify(calculationResult)
     property string display
     property string errorMessage
     property string expression: expressionBuilder.text
@@ -21,10 +22,6 @@ DSM.StateMachine {
     readonly property var process: keyManager.process
     readonly property var supports: keyManager.supports
 
-    readonly property int significantDigits: 13
-    readonly property var trailingPointRegExp: /\.$/
-    readonly property var trailingZerosRegExp: /0+$/
-
     signal error()
 
     onCalculationResultChanged: validate(calculationResult);
@@ -34,6 +31,13 @@ DSM.StateMachine {
     onStopped: reset();
 
     Component.onCompleted: reset();
+
+    function accumulate() {
+        expressionBuilder.pop();
+        operandBuffer.text += keyManager.key;
+        expressionBuilder.push(
+            operandBuffer.text.replace(App.Util.trailingPointRegExp, ""));
+    }
 
     function applyMathFunction() {
         expressionBuilder.push("%1(%2)".arg(keyManager.key).arg(
@@ -128,6 +132,18 @@ DSM.StateMachine {
         operands.push(operand);
     }
 
+    function clearEntry() {
+        expressionBuilder.pop();
+        keyManager.reset();
+        operandBuffer.clear();
+    }
+
+    function recallMemory() {
+        expressionBuilder.pop();
+        operandBuffer.update(memory.recall());
+        expressionBuilder.push(operandBuffer.text);
+    }
+
     function reset() {
         calculationResult = 0.0;
         display = "";
@@ -139,18 +155,24 @@ DSM.StateMachine {
         operators.length = 0;
     }
 
-    function stringify(value) {
-        var newValue = value;
-        if (value === undefined || value === null) {
-            newValue = "";
-        } else if (typeof value === "number") {
-            newValue = value.toFixed(significantDigits);
-            if (newValue.indexOf(".") !== -1) {
-                newValue = newValue.replace(trailingZerosRegExp, "");
-                newValue = newValue.replace(trailingPointRegExp, "");
-            }
-        }
-        return newValue;
+    function resetBeforeAccumulate() {
+        expressionBuilder.pop();
+        operandBuffer.clear();
+    }
+
+    function resetAfterResult() {
+        expressionBuilder.clear();
+        operandBuffer.clear();
+    }
+
+    function toggleSign() {
+        expressionBuilder.pop();
+        operandBuffer.toggleSign();
+        expressionBuilder.push(operandBuffer.text);
+    }
+
+    function updateMemory() {
+        memory.update(operandBuffer.number);
     }
 
     function updateOperator() {
@@ -169,18 +191,13 @@ DSM.StateMachine {
         }
     }
 
-    function withTrailingPoint(value) {
-        var newValue = stringify(value);
-        return (newValue.indexOf(".") === -1) ? newValue + "." : newValue;
-    }
-
     QtObject {
         id: config
 
         property bool equalKeyRepeatsLastOperation: false
     }
 
-    ExpressionBuilder {
+    App.ExpressionBuilder {
         id: expressionBuilder
 
         property Connections __connections: Connections {
@@ -189,7 +206,7 @@ DSM.StateMachine {
         }
     }
 
-    KeyManager {
+    App.KeyManager {
         id: keyManager
 
         clearEntryOperable: operandBuffer.clearable
@@ -204,93 +221,18 @@ DSM.StateMachine {
         }
     }
 
-    QtObject {
+    App.Memory {
         id: memory
 
-        property bool active: false
-        property string text: (!active) ? "" : sm.stringify(value)
-        property double value: 0.0
+        property string text: (!active) ? "" : App.Util.stringify(value)
 
-        function clear() {
-            active = false;
-            value = 0.0;
-        }
-
-        function recall() {
-            operandBuffer.replace(value);
-        }
-
-        function update(num) {
-            active = true;
-            switch (keyManager.key) {
-                case "ms": case "sm":
-                    value = num;
-                    break;
-                case "m+":
-                    value += num;
-                    break;
-                case "m-":
-                    value -= num;
-                    break;
-            }
-        }
+        key: keyManager.key
     }
 
-    QtObject {
+    App.OperandBuffer {
         id: operandBuffer
 
-        property bool clearable: (text !== "" && text !== "0")
-        property double number: (text !== "") ? Number(text) : 0.0
-        property string text: ""
-
         onNumberChanged: validate(number);
-
-        function accumulate() {
-            text += keyManager.key;
-            expressionBuilder.pop();
-            expressionBuilder.push(text.replace(sm.trailingPointRegExp, ""));
-        }
-
-        function clear() {
-            expressionBuilder.pop();
-            reset();
-        }
-
-        function clearEntry() {
-            clear();
-            keyManager.reset();
-        }
-
-        function replace(value) {
-            expressionBuilder.pop();
-            text = stringify(value);
-            expressionBuilder.push(text);
-        }
-
-        function reset() {
-            text = "";
-        }
-
-        function show() {
-            return withTrailingPoint(text);
-        }
-
-        function swap(target, replacement) {
-            var signed = (text.charAt(0) === "-");
-            text = (signed) ? text.slice(1) : text;
-            text = (text === target) ? replacement : text;
-            text = (signed) ? "-" + text : text;
-        }
-
-        function toggleSign() {
-            text = (text.charAt(0) === "-") ? text.slice(1) : "-" + text;
-            expressionBuilder.pop();
-            expressionBuilder.push(text);
-        }
-
-        function update(value) {
-            text = stringify(value);
-        }
     }
 
     initialState: clearState
@@ -309,7 +251,7 @@ DSM.StateMachine {
             signal: keyManager.clearEntryPressed
             guard: (operandBuffer.clearable)
             targetState: zeroState
-            onTriggered: operandBuffer.clearEntry();
+            onTriggered: clearEntry();
         }
         DSM.SignalTransition {
             signal: error
@@ -328,7 +270,7 @@ DSM.StateMachine {
         DSM.SignalTransition {
             signal: keyManager.signPressed
             guard: (operandBuffer.text !== "")
-            onTriggered: operandBuffer.toggleSign();
+            onTriggered: toggleSign();
         }
 
         DSM.State {
@@ -374,7 +316,7 @@ DSM.StateMachine {
 
                 DSM.SignalTransition {
                     signal: keyManager.digitPressed
-                    onTriggered: operandBuffer.accumulate();
+                    onTriggered: accumulate();
                 }
                 DSM.SignalTransition {
                     signal: keyManager.pointPressed
@@ -382,14 +324,14 @@ DSM.StateMachine {
                 }
                 DSM.SignalTransition {
                     signal: keyManager.zeroPressed
-                    onTriggered: operandBuffer.accumulate();
+                    onTriggered: accumulate();
                 }
 
                 DSM.State {
                     id: digitState
                     onEntered: {
                         operandBuffer.swap("0", "");
-                        operandBuffer.accumulate();
+                        accumulate();
                     }
                 }
 
@@ -397,7 +339,7 @@ DSM.StateMachine {
                     id: pointState
                     onEntered: {
                         operandBuffer.swap("", "0");
-                        operandBuffer.accumulate();
+                        accumulate();
                     }
                     DSM.SignalTransition {
                         signal: keyManager.pointPressed
@@ -407,7 +349,7 @@ DSM.StateMachine {
                 DSM.State {
                     id: zeroState
                     onEntered: {
-                        operandBuffer.accumulate();
+                        accumulate();
                     }
                     DSM.SignalTransition {
                         signal: keyManager.digitPressed
@@ -425,17 +367,17 @@ DSM.StateMachine {
                 DSM.SignalTransition {
                     signal: keyManager.digitPressed
                     targetState: digitState
-                    onTriggered: operandBuffer.clear();
+                    onTriggered: resetBeforeAccumulate();
                 }
                 DSM.SignalTransition {
                     signal: keyManager.pointPressed
                     targetState: pointState
-                    onTriggered: operandBuffer.clear();
+                    onTriggered: resetBeforeAccumulate();
                 }
                 DSM.SignalTransition {
                     signal: keyManager.zeroPressed
                     targetState: zeroState
-                    onTriggered: operandBuffer.clear();
+                    onTriggered: resetBeforeAccumulate();
                 }
 
                 DSM.State {
@@ -452,7 +394,7 @@ DSM.StateMachine {
                 DSM.State {
                     id: memoryRecallState
                     onEntered: {
-                        memory.recall();
+                        recallMemory();
                     }
                     DSM.SignalTransition {
                         signal: keyManager.memoryRecallPressed
@@ -462,11 +404,11 @@ DSM.StateMachine {
                 DSM.State {
                     id: memoryUpdateState
                     onEntered: {
-                        memory.update(operandBuffer.number);
+                        updateMemory();
                     }
                     DSM.SignalTransition {
                         signal: keyManager.memoryUpdatePressed
-                        onTriggered: memory.update(operandBuffer.number);
+                        onTriggered: updateMemory();
                     }
                 }
 
@@ -529,7 +471,7 @@ DSM.StateMachine {
                 function show() {
                     var value = (operators.length === 2) ?
                                 lastOperand : operands[0];
-                    return withTrailingPoint(value);
+                    return App.Util.withTrailingPoint(value);
                 }
 
                 DSM.SignalTransition {
@@ -564,12 +506,11 @@ DSM.StateMachine {
 
                 onExited: {
                     lastOperator = "";
-                    expressionBuilder.clear();
-                    operandBuffer.reset();
+                    resetAfterResult();
                 }
 
                 function show() {
-                    return withTrailingPoint(calculationResult);
+                    return App.Util.withTrailingPoint(calculationResult);
                 }
 
                 DSM.SignalTransition {
@@ -614,7 +555,7 @@ DSM.StateMachine {
                     onTriggered: {
                         expressionBuilder.push(calculationResult);
                         operandBuffer.update(calculationResult);
-                        operandBuffer.toggleSign();
+                        toggleSign();
                     }
                 }
             } // End of resultState

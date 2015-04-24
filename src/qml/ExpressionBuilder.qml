@@ -1,4 +1,5 @@
 import QtQuick 2.4
+import "." as App
 
 QtObject {
     id: expressionBuilder
@@ -27,7 +28,7 @@ QtObject {
     }
     
     function push(value) {
-        __buffer.push(stringify(value));
+        __buffer.push(App.Util.stringify(value));
         _updateText();
     }
     
