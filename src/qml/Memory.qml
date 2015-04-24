@@ -1,10 +1,12 @@
 import QtQuick 2.4
+import "." as App
 
 QtObject {
     id: memory
     
     property bool active: false
     property string key
+    property string text: (!active) ? "" : App.Util.stringify(value)
     property double value: 0.0
     
     function clear() {

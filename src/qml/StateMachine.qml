@@ -245,8 +245,6 @@ DSM.StateMachine {
     App.Memory {
         id: memory
 
-        property string text: (!active) ? "" : App.Util.stringify(value)
-
         key: keyManager.key
     }
 
