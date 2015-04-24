@@ -17,30 +17,19 @@ DSM.StateMachine {
     property var operands: []
     property var operators: []
 
-    readonly property var noop: keyInfo.noop
-    readonly property var process: keyInfo.process
-    readonly property var supports: keyInfo.supports
+    readonly property var noop: keyManager.noop
+    readonly property var process: keyManager.process
+    readonly property var supports: keyManager.supports
 
     readonly property int significantDigits: 13
     readonly property var trailingPointRegExp: /\.$/
     readonly property var trailingZerosRegExp: /0+$/
 
-    signal addSubPressed()
-    signal clearPressed()
-    signal clearEntryPressed()
-    signal digitPressed()
-    signal equalPressed()
     signal error()
-    signal functionPressed()
-    signal memoryClearPressed()
-    signal memoryRecallPressed()
-    signal memoryUpdatePressed()
-    signal mulDivPressed()
-    signal pointPressed()
-    signal signPressed()
-    signal zeroPressed()
 
     onCalculationResultChanged: validate(calculationResult);
+
+    onError: expressionBuilder.error();
 
     onOperandChanged: validate(operand);
 
@@ -49,13 +38,13 @@ DSM.StateMachine {
     Component.onCompleted: reset();
 
     function applyMathFunction() {
-        expressionBuilder.push("%1(%2)".arg(keyInfo.key).arg(
+        expressionBuilder.push("%1(%2)".arg(keyManager.key).arg(
                                    expressionBuilder.pop()));
         operand = operandBuffer.number;
         var mathFunction
-        switch (keyInfo.key) {
+        switch (keyManager.key) {
             default:
-                mathFunction = Math[keyInfo.key];
+                mathFunction = Math[keyManager.key];
                 break;
             case "sqr": // We have to create our own function for square.
                 mathFunction = function() { return operand * operand };
@@ -146,7 +135,7 @@ DSM.StateMachine {
         display = "";
         errorMessage = "ERROR";
         expressionBuilder.reset();
-        keyInfo.reset();
+        keyManager.reset();
         operandBuffer.reset();
         operands.length = 0;
         operators.length = 0;
@@ -171,8 +160,8 @@ DSM.StateMachine {
             operators.pop();
             expressionBuilder.pop();
         }
-        operators.push(keyInfo.key);
-        expressionBuilder.push(keyInfo.key);
+        operators.push(keyManager.key);
+        expressionBuilder.push(keyManager.key);
         operators = operators;  // To trigger any bindings to this list.
     }
 
@@ -193,198 +182,22 @@ DSM.StateMachine {
         property bool equalKeyRepeatsLastOperation: false
     }
 
-    QtObject {
+    ExpressionBuilder {
         id: expressionBuilder
-
-        property bool errorMode: false
-
-        property string text: ""
-
-        property var __buffer: []
-
-        property Connections __connections: Connections {
-            target: sm
-            onError: expressionBuilder.errorMode = true;
-        }
-
-        function clear() {
-            if (!errorMode) {
-                __buffer.length = 0;
-                _updateText();
-            }
-        }
-
-        function pop() {
-            var value = __buffer.pop();
-            _updateText();
-            return value;
-        }
-
-        function push(value) {
-            __buffer.push(stringify(value));
-            _updateText();
-        }
-
-        function reset() {
-            errorMode = false;
-            clear();
-        }
-
-        function _updateText() {
-            text = __buffer.join(" ");
-        }
     }
 
-    QtObject {
-        id: keyInfo
+    KeyManager {
+        id: keyManager
 
-        property var groupMap: ({})
-        property string key
-        property var keyMap: ({})
-
-        property var masterList: [
-            {group: "AddSub", signal: addSubPressed, keys: ["+", "-"]},
-            {group: "Clear", signal: clearPressed, keys: ["c"]},
-            {group: "ClearEntry", signal: clearEntryPressed, keys: ["ce"]},
-            {group: "Digit", signal: digitPressed,
-                keys: ["1", "2", "3", "4", "5", "6", "7", "8", "9"]},
-            {group: "Equal", signal: equalPressed, keys: ["="]},
-            {group: "Function", signal: functionPressed,
-                keys: ["acos", "asin", "atan", "cos",
-                       "exp", "log", "sin", "sqr", "sqrt", "tan"]},
-            {group: "MemoryClear", signal: memoryClearPressed,
-                keys: ["mc", "cm"]},
-            {group: "MemoryRecall", signal: memoryRecallPressed,
-                keys: ["mr", "rm"]},
-            {group: "MemoryUpdate", signal: memoryUpdatePressed,
-                keys: ["m+", "m-", "ms", "sm"]},
-            {group: "MulDiv", signal: mulDivPressed, keys: ["*", "/"]},
-            {group: "Point", signal: pointPressed, keys: ["."]},
-            {group: "Sign", signal: signPressed, keys: ["+/-", "±"]},
-            {group: "Zero", signal: zeroPressed, keys: ["0"]},
-        ]
-
-        property var noops
-
-        property var states: [
-            // state, equalCheck (or null for the default), noop groups:
-            [digitState, null, []],
-            [errorState, false, ["AddSub", "Function",
-                                 "MemoryUpdate", "MulDiv", "Sign"]],
-            [functionState, null, []],
-            [memoryRecallState, null, ["MemoryRecall"]],
-            [memoryUpdateState, null, []],
-            [operatorState, true, ["Function", "MemoryUpdate", "Sign"]],
-            [pointState, null, ["Point"]],
-            [resultState, config.equalKeyRepeatsLastOperation, []],
-            [signState, null, []],
-            [zeroState, null, ["Zero"]],
-        ]
+        clearEntryOperable: operandBuffer.clearable
+        equalKeyOperable: operators.length
+        equalKeyRepeatsLastOperation: config.equalKeyRepeatsLastOperation
+        memoryClearOperable: memory.active
+        memoryRecallOperable: memory.active && !memoryRecallState.active
 
         property Connections __connections: Connections {
             target: sm
-            onStarted: keyInfo.reset();
-        }
-
-        property bool __setup: false
-
-        onNoopsChanged: {
-            var specialKeys = groupMap["ClearEntry"].concat(
-                              groupMap["MemoryClear"]).concat(
-                              groupMap["MemoryRecall"]);
-            var noopKeys = [];
-            for (var i = 0; i < noops.length; i++) {
-                noopKeys = noopKeys.concat(groupMap[noops[i]]);
-            }
-            for (var key in keyMap) {
-                if (specialKeys.indexOf(key) !== -1) {
-                    continue;
-                }
-                keyMap[key].noop = (noopKeys.indexOf(key) !== -1);
-            }
-        }
-
-        function currentNoops() {
-            for (var i = 0; i < states.length; i++) {
-                if (states[i][0].active) {
-                    var equalCheck = states[i][1];
-                    if (equalCheck === null) {
-                        equalCheck = operators.length; // Default.
-                    }
-                    var groups = states[i][2];
-                    return (equalCheck) ? groups : groups.concat(["Equal"]);
-                }
-            }
-            return [];
-        }
-
-        function noop(uiKey) {
-            return (supports(uiKey)) ? keyMap[uiKey.toLowerCase()].noop : true;
-        }
-
-        function process(uiKey) {
-            var accepted = false;
-            key = uiKey.toLowerCase();
-            if (key in keyMap) {
-                accepted = true;
-                keyMap[key].signal();
-                noops = currentNoops();
-            }
-            return accepted;
-        }
-
-        function reset() {
-            setup();
-            key = 0;
-            noops = currentNoops();
-        }
-
-        function setup() {
-            if (__setup) {
-                return;
-            }
-            var i;
-            var key;
-            var specialKeys;
-            var qml = "import QtQuick 2.4;" +
-                      "QtObject { property bool noop: false;" +
-                                 "property var signal }"
-            for (i = 0; i < masterList.length; i++) {
-                var obj = masterList[i];
-                groupMap[obj.group] = obj.keys;
-                for (var j = 0; j < obj.keys.length; j++) {
-                    key = obj.keys[j];
-                    keyMap[key] = Qt.createQmlObject(qml, sm, "KeyDetails");
-                    keyMap[key].signal = obj.signal;
-                }
-            }
-            specialKeys = groupMap["ClearEntry"];
-            for (i = 0; i < specialKeys.length; i++) {
-                key = specialKeys[i];
-                keyMap[key].noop = Qt.binding(
-                    function() { return (!operandBuffer.clearable); });
-            }
-            specialKeys = groupMap["MemoryClear"];
-            for (i = 0; i < specialKeys.length; i++) {
-                key = specialKeys[i];
-                keyMap[key].noop = Qt.binding(
-                    function() { return (!memory.active); });
-            }
-            specialKeys = groupMap["MemoryRecall"];
-            for (i = 0; i < specialKeys.length; i++) {
-                key = specialKeys[i];
-                keyMap[key].noop = Qt.binding(
-                    function() { return (!memory.active ||
-                                         memoryRecallState.active); });
-            }
-            __setup = true;
-        }
-
-        function supports(uiKey) {
-            // We need to call setup() here because this function gets called
-            // before Component.onCompleted() takes place, unfortunately.
-            setup();
-            return (uiKey.toLowerCase() in keyMap);
+            onStarted: keyManager.reset();
         }
     }
 
@@ -406,7 +219,7 @@ DSM.StateMachine {
 
         function update(num) {
             active = true;
-            switch (keyInfo.key) {
+            switch (keyManager.key) {
                 case "ms": case "sm":
                     value = num;
                     break;
@@ -430,7 +243,7 @@ DSM.StateMachine {
         onNumberChanged: validate(number);
 
         function accumulate() {
-            text += keyInfo.key;
+            text += keyManager.key;
             expressionBuilder.pop();
             expressionBuilder.push(text.replace(sm.trailingPointRegExp, ""));
         }
@@ -442,7 +255,7 @@ DSM.StateMachine {
 
         function clearEntry() {
             clear();
-            keyInfo.reset();
+            keyManager.reset();
         }
 
         function replace(value) {
@@ -485,12 +298,12 @@ DSM.StateMachine {
         initialState: operandState
 
         DSM.SignalTransition {
-            signal: clearPressed
+            signal: keyManager.clearPressed
             targetState: clearState
             onTriggered: reset();
         }
         DSM.SignalTransition {
-            signal: clearEntryPressed
+            signal: keyManager.clearEntryPressed
             guard: (operandBuffer.clearable)
             targetState: zeroState
             onTriggered: operandBuffer.clearEntry();
@@ -500,17 +313,17 @@ DSM.StateMachine {
             targetState: errorState
         }
         DSM.SignalTransition {
-            signal: memoryClearPressed
+            signal: keyManager.memoryClearPressed
             guard: (memory.active)
             onTriggered: memory.clear();
         }
         DSM.SignalTransition {
-            signal: memoryRecallPressed
+            signal: keyManager.memoryRecallPressed
             guard: (memory.active)
             targetState: memoryRecallState
         }
         DSM.SignalTransition {
-            signal: signPressed
+            signal: keyManager.signPressed
             guard: (operandBuffer.text !== "")
             onTriggered: operandBuffer.toggleSign();
         }
@@ -528,25 +341,25 @@ DSM.StateMachine {
             }
 
             DSM.SignalTransition {
-                signal: addSubPressed
+                signal: keyManager.addSubPressed
                 targetState: operatorState
                 onTriggered: calculateAll(false);
             }
             DSM.SignalTransition {
-                signal: equalPressed
+                signal: keyManager.equalPressed
                 guard: (operators.length)
                 targetState: resultState
             }
             DSM.SignalTransition {
-                signal: functionPressed
+                signal: keyManager.functionPressed
                 targetState: functionState
             }
             DSM.SignalTransition {
-                signal: memoryUpdatePressed
+                signal: keyManager.memoryUpdatePressed
                 targetState: memoryUpdateState
             }
             DSM.SignalTransition {
-                signal: mulDivPressed
+                signal: keyManager.mulDivPressed
                 targetState: operatorState
                 onTriggered: calculateLast();
             }
@@ -557,15 +370,15 @@ DSM.StateMachine {
                 initialState: zeroState
 
                 DSM.SignalTransition {
-                    signal: digitPressed
+                    signal: keyManager.digitPressed
                     onTriggered: operandBuffer.accumulate();
                 }
                 DSM.SignalTransition {
-                    signal: pointPressed
+                    signal: keyManager.pointPressed
                     targetState: pointState
                 }
                 DSM.SignalTransition {
-                    signal: zeroPressed
+                    signal: keyManager.zeroPressed
                     onTriggered: operandBuffer.accumulate();
                 }
 
@@ -584,7 +397,7 @@ DSM.StateMachine {
                         operandBuffer.accumulate();
                     }
                     DSM.SignalTransition {
-                        signal: pointPressed
+                        signal: keyManager.pointPressed
                     }
                 }
 
@@ -594,11 +407,11 @@ DSM.StateMachine {
                         operandBuffer.accumulate();
                     }
                     DSM.SignalTransition {
-                        signal: digitPressed
+                        signal: keyManager.digitPressed
                         targetState: digitState
                     }
                     DSM.SignalTransition {
-                        signal: zeroPressed
+                        signal: keyManager.zeroPressed
                     }
                 }
             } // End of accumulateState
@@ -607,17 +420,17 @@ DSM.StateMachine {
                 id: manipulateState
 
                 DSM.SignalTransition {
-                    signal: digitPressed
+                    signal: keyManager.digitPressed
                     targetState: digitState
                     onTriggered: operandBuffer.clear();
                 }
                 DSM.SignalTransition {
-                    signal: pointPressed
+                    signal: keyManager.pointPressed
                     targetState: pointState
                     onTriggered: operandBuffer.clear();
                 }
                 DSM.SignalTransition {
-                    signal: zeroPressed
+                    signal: keyManager.zeroPressed
                     targetState: zeroState
                     onTriggered: operandBuffer.clear();
                 }
@@ -628,7 +441,7 @@ DSM.StateMachine {
                         applyMathFunction();
                     }
                     DSM.SignalTransition {
-                        signal: functionPressed
+                        signal: keyManager.functionPressed
                         onTriggered: applyMathFunction();
                     }
                 }
@@ -639,7 +452,7 @@ DSM.StateMachine {
                         memory.recall();
                     }
                     DSM.SignalTransition {
-                        signal: memoryRecallPressed
+                        signal: keyManager.memoryRecallPressed
                     }
                 }
 
@@ -649,7 +462,7 @@ DSM.StateMachine {
                         memory.update(operandBuffer.number);
                     }
                     DSM.SignalTransition {
-                        signal: memoryUpdatePressed
+                        signal: keyManager.memoryUpdatePressed
                         onTriggered: memory.update(operandBuffer.number);
                     }
                 }
@@ -664,18 +477,18 @@ DSM.StateMachine {
             id: operationState
 
             DSM.SignalTransition {
-                signal: digitPressed
+                signal: keyManager.digitPressed
                 targetState: digitState
             }
             DSM.SignalTransition {
-                signal: pointPressed
+                signal: keyManager.pointPressed
                 targetState: pointState
             }
             DSM.SignalTransition {
-                signal: signPressed
+                signal: keyManager.signPressed
             }
             DSM.SignalTransition {
-                signal: zeroPressed
+                signal: keyManager.zeroPressed
                 targetState: zeroState
             }
 
@@ -688,9 +501,9 @@ DSM.StateMachine {
                 }
 
                 onExited: {
-                    var temp = keyInfo.key;
+                    var temp = keyManager.key;
                     reset();
-                    keyInfo.key = temp;
+                    keyManager.key = temp;
                 }
 
                 DSM.SignalTransition {
@@ -717,11 +530,11 @@ DSM.StateMachine {
                 }
 
                 DSM.SignalTransition {
-                    signal: addSubPressed
+                    signal: keyManager.addSubPressed
                     onTriggered: updateOperator();
                 }
                 DSM.SignalTransition {
-                    signal: equalPressed
+                    signal: keyManager.equalPressed
                     targetState: resultState
                     onTriggered: {
                         operandBuffer.update(operands[0]);
@@ -730,7 +543,7 @@ DSM.StateMachine {
                     }
                 }
                 DSM.SignalTransition {
-                    signal: mulDivPressed
+                    signal: keyManager.mulDivPressed
                     onTriggered: updateOperator();
                 }
             } // End of operatorState
@@ -763,12 +576,12 @@ DSM.StateMachine {
                 }
 
                 DSM.SignalTransition {
-                    signal: addSubPressed
+                    signal: keyManager.addSubPressed
                     targetState: operatorState
                     onTriggered: expressionBuilder.push(calculationResult);
                 }
                 DSM.SignalTransition {
-                    signal: equalPressed
+                    signal: keyManager.equalPressed
                     guard: (config.equalKeyRepeatsLastOperation)
                     onTriggered: {
                         // Repeat the last operation using the
@@ -778,7 +591,7 @@ DSM.StateMachine {
                     }
                 }
                 DSM.SignalTransition {
-                    signal: functionPressed
+                    signal: keyManager.functionPressed
                     targetState: functionState
                     onTriggered: {
                         expressionBuilder.push(calculationResult);
@@ -786,7 +599,7 @@ DSM.StateMachine {
                     }
                 }
                 DSM.SignalTransition {
-                    signal: memoryUpdatePressed
+                    signal: keyManager.memoryUpdatePressed
                     targetState: memoryUpdateState
                     onTriggered: {
                         expressionBuilder.push(calculationResult);
@@ -794,12 +607,12 @@ DSM.StateMachine {
                     }
                 }
                 DSM.SignalTransition {
-                    signal: mulDivPressed
+                    signal: keyManager.mulDivPressed
                     targetState: operatorState
                     onTriggered: expressionBuilder.push(calculationResult);
                 }
                 DSM.SignalTransition {
-                    signal: signPressed
+                    signal: keyManager.signPressed
                     targetState: signState
                     onTriggered: {
                         expressionBuilder.push(calculationResult);
