@@ -34,22 +34,11 @@ QtObject {
         {group: "Sign", signal: signPressed, keys: ["+/-", "±"]},
         {group: "Zero", signal: zeroPressed, keys: ["0"]},
     ]
-        
+
     property var noopGroups: [
-        // state, equalCheck (or null for the default), noop groups:
-        [digitState, null, []],
-        [errorState, false, ["AddSub", "Function",
-                             "MemoryUpdate", "MulDiv", "Sign"]],
-        [functionState, null, []],
-        [memoryRecallState, null, ["MemoryRecall"]],
-        [memoryUpdateState, null, []],
-        [operatorState, true, ["Function", "MemoryUpdate", "Sign"]],
-        [pointState, null, ["Point"]],
-        [resultState, equalKeyRepeatsLastOperation, []],
-        [signState, null, []],
-        [zeroState, null, ["Zero"]],
+        // [state, equal-key-operable (or null for the default), noop-groups]
     ]
-    
+        
     property var noops
 
     property bool __setup: false

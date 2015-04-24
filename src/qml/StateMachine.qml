@@ -222,6 +222,21 @@ DSM.StateMachine {
         memoryClearOperable: memory.active
         memoryRecallOperable: memory.active && !memoryRecallState.active
 
+        noopGroups: [
+            // [state, equal-key-operable (or null for default), noop-groups]
+            [digitState, null, []],
+            [errorState, false, ["AddSub", "Function",
+                                 "MemoryUpdate", "MulDiv", "Sign"]],
+            [functionState, null, []],
+            [memoryRecallState, null, ["MemoryRecall"]],
+            [memoryUpdateState, null, []],
+            [operatorState, true, ["Function", "MemoryUpdate", "Sign"]],
+            [pointState, null, ["Point"]],
+            [resultState, equalKeyRepeatsLastOperation, []],
+            [signState, null, []],
+            [zeroState, null, ["Zero"]],
+        ]
+
         property Connections __connections: Connections {
             target: sm
             onStarted: keyManager.reset();
