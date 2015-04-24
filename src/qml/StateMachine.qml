@@ -29,8 +29,6 @@ DSM.StateMachine {
 
     onCalculationResultChanged: validate(calculationResult);
 
-    onError: expressionBuilder.error();
-
     onOperandChanged: validate(operand);
 
     onStopped: reset();
@@ -184,6 +182,11 @@ DSM.StateMachine {
 
     ExpressionBuilder {
         id: expressionBuilder
+
+        property Connections __connections: Connections {
+            target: sm
+            onError: expressionBuilder.error();
+        }
     }
 
     KeyManager {
@@ -556,12 +559,10 @@ DSM.StateMachine {
                 onEntered: {
                     display = Qt.binding(show);
                     lastOperator = operators[0];
-                    update();
+                    calculateAll(true);
                 }
 
-                onExited: clear();
-
-                function clear() {
+                onExited: {
                     lastOperator = "";
                     expressionBuilder.clear();
                     operandBuffer.reset();
@@ -569,10 +570,6 @@ DSM.StateMachine {
 
                 function show() {
                     return withTrailingPoint(calculationResult);
-                }
-
-                function update() {
-                    calculateAll(true);
                 }
 
                 DSM.SignalTransition {
@@ -587,7 +584,7 @@ DSM.StateMachine {
                         // Repeat the last operation using the
                         // previous buffer and operator.
                         operators[0] = resultState.lastOperator;
-                        resultState.update();
+                        calculateAll(true);
                     }
                 }
                 DSM.SignalTransition {
