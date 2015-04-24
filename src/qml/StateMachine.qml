@@ -185,6 +185,13 @@ DSM.StateMachine {
         operators = operators;  // To trigger any bindings to this list.
     }
 
+    function updateResult(updateOperandBuffer) {
+        expressionBuilder.push(calculationResult);
+        if (updateOperandBuffer) {
+            operandBuffer.update(calculationResult);
+        }
+    }
+
     function validate(num) {
         if (!isFinite(num)) {
             error();
@@ -414,6 +421,9 @@ DSM.StateMachine {
 
                 DSM.State {
                     id: signState
+                    onEntered: {
+                        toggleSign();
+                    }
                 }
             } // End of manipulateState
         } // End of operandState
@@ -516,7 +526,7 @@ DSM.StateMachine {
                 DSM.SignalTransition {
                     signal: keyManager.addSubPressed
                     targetState: operatorState
-                    onTriggered: expressionBuilder.push(calculationResult);
+                    onTriggered: updateResult(false);
                 }
                 DSM.SignalTransition {
                     signal: keyManager.equalPressed
@@ -531,32 +541,22 @@ DSM.StateMachine {
                 DSM.SignalTransition {
                     signal: keyManager.functionPressed
                     targetState: functionState
-                    onTriggered: {
-                        expressionBuilder.push(calculationResult);
-                        operandBuffer.update(calculationResult);
-                    }
+                    onTriggered: updateResult(true);
                 }
                 DSM.SignalTransition {
                     signal: keyManager.memoryUpdatePressed
                     targetState: memoryUpdateState
-                    onTriggered: {
-                        expressionBuilder.push(calculationResult);
-                        operandBuffer.update(calculationResult);
-                    }
+                    onTriggered: updateResult(true);
                 }
                 DSM.SignalTransition {
                     signal: keyManager.mulDivPressed
                     targetState: operatorState
-                    onTriggered: expressionBuilder.push(calculationResult);
+                    onTriggered: updateResult(false);
                 }
                 DSM.SignalTransition {
                     signal: keyManager.signPressed
                     targetState: signState
-                    onTriggered: {
-                        expressionBuilder.push(calculationResult);
-                        operandBuffer.update(calculationResult);
-                        toggleSign();
-                    }
+                    onTriggered: updateResult(true);
                 }
             } // End of resultState
         } // End of operationState
