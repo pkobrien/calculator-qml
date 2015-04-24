@@ -5,7 +5,6 @@ QtObject {
 
     property bool clearEntryOperable: true
     property bool equalKeyOperable: true
-    property bool equalKeyRepeatsLastOperation: false
     property bool memoryClearOperable: true
     property bool memoryRecallOperable: true
 

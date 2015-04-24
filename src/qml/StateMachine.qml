@@ -218,7 +218,6 @@ DSM.StateMachine {
 
         clearEntryOperable: operandBuffer.clearable
         equalKeyOperable: operators.length
-        equalKeyRepeatsLastOperation: config.equalKeyRepeatsLastOperation
         memoryClearOperable: memory.active
         memoryRecallOperable: memory.active && !memoryRecallState.active
 
@@ -232,7 +231,7 @@ DSM.StateMachine {
             [memoryUpdateState, null, []],
             [operatorState, true, ["Function", "MemoryUpdate", "Sign"]],
             [pointState, null, ["Point"]],
-            [resultState, equalKeyRepeatsLastOperation, []],
+            [resultState, config.equalKeyRepeatsLastOperation, []],
             [signState, null, []],
             [zeroState, null, ["Zero"]],
         ]
