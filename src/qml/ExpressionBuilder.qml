@@ -14,6 +14,14 @@ QtObject {
     
     onError: errorMode = true;
     
+    function applyMathFunction(key) {
+        if (key === "%") {
+            push("(%1%2)".arg(pop()).arg(key));
+        } else {
+            push("%1(%2)".arg(key).arg(pop()));
+        }
+    }
+
     function clear() {
         if (!errorMode) {
             __buffer.length = 0;
@@ -37,6 +45,11 @@ QtObject {
         clear();
     }
     
+    function update(value) {
+        __buffer.pop();
+        push(value.replace(App.Util.trailingPointRegExp, ""));
+    }
+
     function _updateText() {
         text = __buffer.join(" ");
     }

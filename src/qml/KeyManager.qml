@@ -20,8 +20,8 @@ QtObject {
             keys: ["1", "2", "3", "4", "5", "6", "7", "8", "9"]},
         {group: "Equal", signal: equalPressed, keys: ["="]},
         {group: "Function", signal: functionPressed,
-            keys: ["acos", "asin", "atan", "cos",
-                "exp", "log", "sin", "sqr", "sqrt", "tan"]},
+            keys: ["%", "acos", "asin", "atan", "cos",
+                   "exp", "log", "sin", "sqr", "sqrt", "tan"]},
         {group: "MemoryClear", signal: memoryClearPressed,
             keys: ["mc", "cm"]},
         {group: "MemoryRecall", signal: memoryRecallPressed,
@@ -72,6 +72,12 @@ QtObject {
         }
     }
     
+    function clear() {
+        setup();
+        key = 0;
+        noops = currentNoops();
+    }
+
     function currentNoops() {
         for (var i = 0; i < noopGroups.length; i++) {
             if (noopGroups[i][0].active) {
@@ -99,12 +105,6 @@ QtObject {
             noops = currentNoops();
         }
         return accepted;
-    }
-    
-    function reset() {
-        setup();
-        key = 0;
-        noops = currentNoops();
     }
     
     function setup() {

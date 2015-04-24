@@ -7,6 +7,10 @@ QtObject {
     property bool clearable: (text !== "" && text !== "0")
     property double number: (text !== "") ? Number(text) : 0.0
     property string text: ""
+
+    function append(digit) {
+        text += digit;
+    }
     
     function clear() {
         reset();

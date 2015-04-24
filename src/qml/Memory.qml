@@ -5,7 +5,6 @@ QtObject {
     id: memory
     
     property bool active: false
-    property string key
     property string text: (!active) ? "" : App.Util.stringify(value)
     property double value: 0.0
     
@@ -18,7 +17,7 @@ QtObject {
         return value;
     }
     
-    function update(num) {
+    function update(key, num) {
         active = true;
         switch (key) {
             case "ms":

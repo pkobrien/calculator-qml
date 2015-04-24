@@ -14,6 +14,7 @@
         <file>qml/Memory.qml</file>
         <file>qml/MenuBar.qml</file>
         <file>qml/OperandBuffer.qml</file>
+        <file>qml/Processor.qml</file>
         <file>qml/qmldir</file>
         <file>qml/StateMachine.qml</file>
         <file>qml/Units.qml</file>
