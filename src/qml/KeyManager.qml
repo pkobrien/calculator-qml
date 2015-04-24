@@ -34,10 +34,8 @@ QtObject {
         {group: "Sign", signal: signPressed, keys: ["+/-", "±"]},
         {group: "Zero", signal: zeroPressed, keys: ["0"]},
     ]
-    
-    property var noops
-    
-    property var states: [
+        
+    property var noopGroups: [
         // state, equalCheck (or null for the default), noop groups:
         [digitState, null, []],
         [errorState, false, ["AddSub", "Function",
@@ -52,6 +50,8 @@ QtObject {
         [zeroState, null, ["Zero"]],
     ]
     
+    property var noops
+
     property bool __setup: false
     
     signal addSubPressed()
@@ -85,13 +85,13 @@ QtObject {
     }
     
     function currentNoops() {
-        for (var i = 0; i < states.length; i++) {
-            if (states[i][0].active) {
-                var equalCheck = states[i][1];
+        for (var i = 0; i < noopGroups.length; i++) {
+            if (noopGroups[i][0].active) {
+                var equalCheck = noopGroups[i][1];
                 if (equalCheck === null) {
                     equalCheck = equalKeyOperable; // Default.
                 }
-                var groups = states[i][2];
+                var groups = noopGroups[i][2];
                 return (equalCheck) ? groups : groups.concat(["Equal"]);
             }
         }
