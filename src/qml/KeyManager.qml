@@ -4,7 +4,7 @@ QtObject {
     id: keyManager
 
     property bool clearEntryOperable: true
-    property bool equalKeyOperable: true
+    property bool equalOperable: true
     property bool memoryClearOperable: true
     property bool memoryRecallOperable: true
 
@@ -83,7 +83,7 @@ QtObject {
             if (noopGroups[i][0].active) {
                 var equalCheck = noopGroups[i][1];
                 if (equalCheck === null) {
-                    equalCheck = equalKeyOperable; // Default.
+                    equalCheck = equalOperable; // Default.
                 }
                 var groups = noopGroups[i][2];
                 return (equalCheck) ? groups : groups.concat(["Equal"]);

@@ -53,7 +53,7 @@ DSM.StateMachine {
         id: keyManager
 
         clearEntryOperable: processor.clearable
-        equalKeyOperable: processor.equalable
+        equalOperable: processor.equalable
         memoryClearOperable: processor.memorable
         memoryRecallOperable: processor.memorable && !memoryRecallState.active
 
@@ -132,7 +132,7 @@ DSM.StateMachine {
             }
             DSM.SignalTransition {
                 signal: keyManager.equalPressed
-                guard: (keyManager.equalKeyOperable)
+                guard: (keyManager.equalOperable)
                 targetState: resultState
             }
             DSM.SignalTransition {
