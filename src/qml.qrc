@@ -13,6 +13,7 @@
         <file>qml/Keypad.qml</file>
         <file>qml/Memory.qml</file>
         <file>qml/MenuBar.qml</file>
+        <file>qml/Object.qml</file>
         <file>qml/OperandBuffer.qml</file>
         <file>qml/Processor.qml</file>
         <file>qml/qmldir</file>

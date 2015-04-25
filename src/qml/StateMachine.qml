@@ -279,6 +279,8 @@ DSM.StateMachine {
             DSM.State {
                 id: errorState
 
+                onEntered: processor.displayError();
+
                 onExited: clearError();
 
                 DSM.SignalTransition {

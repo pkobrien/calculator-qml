@@ -1,7 +1,7 @@
 import QtQuick 2.4
 import "." as App
 
-QtObject {
+App.Object {
     id: processor
 
     readonly property bool clearable: operandBuffer.clearable
@@ -17,8 +17,8 @@ QtObject {
     property string memoryText: memory.text
     property string resultText: App.Util.stringify(calculationResult)
 
-    property double operand
     property double calculationResult
+    property double operand
 
     property string lastOperand
     property string lastOperator
@@ -26,26 +26,9 @@ QtObject {
     property var operands: []
     property var operators: []
 
-    property var expressionBuilder: App.ExpressionBuilder {  }
-
-    property var memory: App.Memory {  }
-
-    property var operandBuffer: App.OperandBuffer {  }
-
-//    property Connections __connections: Connections {
-//        target: operandBuffer
-//        onNumberChanged: validate(operandBuffer.number);
-//    }
-
     signal error()
 
     onCalculationResultChanged: validate(calculationResult);
-
-    onError: {
-        displayText = errorMessage;
-        expressionBuilder.error();
-        operandBuffer.reset();
-    }
 
     onOperandChanged: validate(operand);
 
@@ -134,6 +117,7 @@ QtObject {
             expressionBuilder.push("=");
             expressionBuilder.push(calculationResult);
         }
+        operators = operators;  // To trigger any bindings to this list.
     }
 
     function calculateLast() {
@@ -157,6 +141,7 @@ QtObject {
             }
         }
         operands.push(operand);
+        operators = operators;  // To trigger any bindings to this list.
     }
 
     function clear() {
@@ -178,6 +163,11 @@ QtObject {
         memory.clear();
     }
 
+    function displayError() {
+        displayText = errorMessage;
+        operandBuffer.reset();
+    }
+
     function recallMemory() {
         expressionBuilder.pop();
         operandBuffer.update(memory.recall());
@@ -186,6 +176,7 @@ QtObject {
 
     function repeatEqual() {
         operators[0] = lastOperator;
+        operators = operators;  // To trigger any bindings to this list.
         calculateAll(true);
     }
 
@@ -261,7 +252,22 @@ QtObject {
 
     function validate(num) {
         if (!isFinite(num)) {
-            error();
+            expressionBuilder.error();
+            processor.error();
         }
+    }
+
+    App.ExpressionBuilder {
+        id: expressionBuilder
+    }
+
+    App.Memory {
+        id: memory
+    }
+
+    App.OperandBuffer {
+        id: operandBuffer
+
+        onNumberChanged: processor.validate(number);
     }
 }

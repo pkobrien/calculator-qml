@@ -176,6 +176,16 @@ Item {
             util.calculate_and_compare(engine, data);
         }
 
+        function test_accumulate_point() {
+            var data = [ // keys, expression, display, result // index
+                ["3", "3", "3.", "0"], // 0
+                ["+", "3 +", "3.", "3"], // 1
+                [".", "3 + 0", "0.", "3"], // 2
+                ["2", "3 + 0.2", "0.2", "3"], // 3
+            ];
+            util.calculate_and_compare(engine, data);
+        }
+
         function test_basic_addition() {
             util.process(engine, "2 + 2 =");
             compare(engine.display, "4.");
