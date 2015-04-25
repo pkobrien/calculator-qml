@@ -74,7 +74,7 @@ DSM.StateMachine {
         ]
     }
 
-    Processor {
+    App.Processor {
         id: processor
 
         equalKeyRepeatsLastOperation: config.equalKeyRepeatsLastOperation
